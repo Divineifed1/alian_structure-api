@@ -2,7 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { AuthService } from "./auth.service";
 import { JwtService } from "@nestjs/jwt";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { User, UserRole } from "../user/entities/user.entity";
+import { User, UserRole, KycStatus } from "../user/entities/user.entity";
 import { Repository } from "typeorm";
 import {
   ConflictException,
@@ -26,13 +26,22 @@ describe("AuthService", () => {
   const mockUser: User = {
     id: "123",
     username: "testuser",
-    walletAddress: "email_test@example.com",
+    walletAddress: "0x1234567890abcdef",
     email: "test@example.com",
     password: "hashedpassword",
     emailVerified: false,
     role: UserRole.USER,
+    kycStatus: KycStatus.UNVERIFIED,
+    isActive: true,
+    lastLoginAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
+    provenanceRecords: [],
+    wallets: [],
+    referralCode: "ABC123",
+    referredById: null,
+    referredBy: null,
+    referrals: [],
   };
 
   const mockJwtService = {

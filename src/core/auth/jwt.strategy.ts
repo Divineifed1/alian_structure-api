@@ -22,7 +22,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private configService: ConfigService,
     private tokenBlacklist: TokenBlacklistService,
   ) {
-    const secret = configService.get<string>("JWT_SECRET");
+    const secret = configService.get<string>("JWT_SECRET") || process.env.JWT_SECRET || "your_jwt_secret_key_here";
 
     if (!secret) {
       throw new Error("JWT_SECRET must be defined in environment variables");

@@ -48,20 +48,20 @@ describe('UserService — role separation (Governance vs KYC)', () => {
   });
 
   describe('assertNoRoleConflict', () => {
-    it('throws when assigning KYC_OPERATOR to a GOVERNANCE_OPERATOR user', () => {
+    it('throws when assigning KYC_OPERATOR to an ADMIN user', () => {
       expect(() =>
         service.assertNoRoleConflict(
-          UserRole.GOVERNANCE_OPERATOR,
+          UserRole.ADMIN,
           UserRole.KYC_OPERATOR,
         ),
       ).toThrow(BadRequestException);
     });
 
-    it('throws when assigning GOVERNANCE_OPERATOR to a KYC_OPERATOR user', () => {
+    it('throws when assigning ADMIN to a KYC_OPERATOR user', () => {
       expect(() =>
         service.assertNoRoleConflict(
           UserRole.KYC_OPERATOR,
-          UserRole.GOVERNANCE_OPERATOR,
+          UserRole.ADMIN,
         ),
       ).toThrow(BadRequestException);
     });
@@ -69,8 +69,8 @@ describe('UserService — role separation (Governance vs KYC)', () => {
     it('does not throw when assigning same role', () => {
       expect(() =>
         service.assertNoRoleConflict(
-          UserRole.GOVERNANCE_OPERATOR,
-          UserRole.GOVERNANCE_OPERATOR,
+          UserRole.ADMIN,
+          UserRole.ADMIN,
         ),
       ).not.toThrow();
     });
@@ -83,32 +83,32 @@ describe('UserService — role separation (Governance vs KYC)', () => {
   });
 
   describe('assignRole', () => {
-    it('throws BadRequestException when assigning KYC_OPERATOR to GOVERNANCE_OPERATOR user', async () => {
-      repo.findOne.mockResolvedValue(makeUser(UserRole.GOVERNANCE_OPERATOR));
+    it('throws BadRequestException when assigning KYC_OPERATOR to ADMIN user', async () => {
+      repo.findOne.mockResolvedValue(makeUser(UserRole.ADMIN));
       await expect(
         service.assignRole('user-1', UserRole.KYC_OPERATOR),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('throws BadRequestException when assigning GOVERNANCE_OPERATOR to KYC_OPERATOR user', async () => {
+    it('throws BadRequestException when assigning ADMIN to KYC_OPERATOR user', async () => {
       repo.findOne.mockResolvedValue(makeUser(UserRole.KYC_OPERATOR));
       await expect(
-        service.assignRole('user-1', UserRole.GOVERNANCE_OPERATOR),
+        service.assignRole('user-1', UserRole.ADMIN),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('throws NotFoundException when user does not exist', async () => {
       repo.findOne.mockResolvedValue(null);
       await expect(
-        service.assignRole('nonexistent', UserRole.GOVERNANCE_OPERATOR),
+        service.assignRole('nonexistent', UserRole.ADMIN),
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('successfully assigns GOVERNANCE_OPERATOR to a plain USER', async () => {
+    it('successfully assigns ADMIN to a plain USER', async () => {
       const user = makeUser(UserRole.USER);
       repo.findOne.mockResolvedValue(user);
-      const result = await service.assignRole('user-1', UserRole.GOVERNANCE_OPERATOR);
-      expect(result.role).toBe(UserRole.GOVERNANCE_OPERATOR);
+      const result = await service.assignRole('user-1', UserRole.ADMIN);
+      expect(result.role).toBe(UserRole.ADMIN);
     });
 
     it('successfully assigns KYC_OPERATOR to a plain USER', async () => {

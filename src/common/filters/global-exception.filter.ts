@@ -5,7 +5,9 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  Injectable,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 
@@ -16,9 +18,14 @@ import { v4 as uuidv4 } from "uuid";
  * - Returns structured, generic error responses to clients.
  */
 @Catch()
+@Injectable()
 export class GlobalExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(GlobalExceptionFilter.name);
-  private readonly isProduction = process.env.NODE_ENV === "production";
+  private readonly isProduction: boolean;
+
+  constructor(private readonly configService: ConfigService) {
+    this.isProduction = this.configService.get<string>("NODE_ENV") === "production";
+  }
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();

@@ -3,7 +3,8 @@ import { WalletAuthService } from "./wallet-auth.service";
 import { ChallengeService } from "./challenge.service";
 import { JwtService } from "@nestjs/jwt";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { User, UserRole } from "../user/entities/user.entity";
+import { User, UserRole, KycStatus } from "../user/entities/user.entity";
+import { Wallet } from "./entities/wallet.entity";
 import { Repository } from "typeorm";
 import {
   UnauthorizedException,
@@ -31,8 +32,17 @@ describe("WalletAuthService", () => {
     password: null,
     emailVerified: true,
     role: UserRole.USER,
+    kycStatus: KycStatus.UNVERIFIED,
+    isActive: true,
+    lastLoginAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
+    provenanceRecords: [],
+    wallets: [],
+    referralCode: "ABC123",
+    referredById: null,
+    referredBy: null,
+    referrals: [],
   };
 
   const mockChallengeService = {
@@ -50,6 +60,13 @@ describe("WalletAuthService", () => {
     findOne: jest.fn(),
     save: jest.fn(),
     create: jest.fn(),
+  };
+
+  const mockWalletRepository = {
+    findOne: jest.fn(),
+    save: jest.fn(),
+    create: jest.fn(),
+    find: jest.fn().mockResolvedValue([]),
   };
 
   beforeEach(async () => {
@@ -70,6 +87,10 @@ describe("WalletAuthService", () => {
         {
           provide: getRepositoryToken(User),
           useValue: mockUserRepository,
+        },
+        {
+          provide: getRepositoryToken(Wallet),
+          useValue: mockWalletRepository,
         },
       ],
     }).compile();

@@ -1,8 +1,12 @@
 import { Module, OnModuleInit } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { join } from "path";
 import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerModule } from "@nestjs/throttler";
+import { validate } from "class-validator";
+import { plainToInstance } from "class-transformer";
+import { EnvironmentVariables } from "./config/env.validation";
 
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
@@ -63,16 +67,37 @@ import { Alert } from "./growth/alerts/entities/alert.entity";
 import { AlertTriggerLog } from "./growth/alerts/entities/alert-trigger-log.entity";
 
 // Guards
+import { APP_FILTER } from "@nestjs/core";
 import { ThrottlerUserIpGuard } from "./common/guard/throttler.guard";
 import { RolesGuard } from "./common/guard/roles.guard";
 import { KycGuard } from "./common/guard/kyc.guard";
+import { GlobalExceptionFilter } from "./common/filters/global-exception.filter";
 import { SubmissionVerifierService } from "./blockchain/oracle/submission-verifier.service";
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ".env",
+      envFilePath: process.env.NODE_ENV === 'production' 
+        ? join(__dirname, '..', '.env')
+        : '.env',
+      validate: async (config: Record<string, unknown>) => {
+        const validatedConfig = plainToInstance(EnvironmentVariables, config, {
+          enableImplicitConversion: true,
+        });
+        const errors = await validate(validatedConfig, {
+          whitelist: true,
+          forbidNonWhitelisted: true,
+        });
+        if (errors.length > 0) {
+          throw new Error(
+            `Environment validation failed: ${errors
+              .map((e) => Object.values(e.constraints || {}).join(", "))
+              .join(", ")}`,
+          );
+        }
+        return validatedConfig;
+      },
     }),
 
     // ✅ ONLY ONE TypeORM CONFIG (Async)
@@ -152,6 +177,10 @@ import { SubmissionVerifierService } from "./blockchain/oracle/submission-verifi
   providers: [
     AppService,
     {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
+    {
       provide: APP_GUARD,
       useClass: ThrottlerUserIpGuard,
     },
@@ -163,6 +192,7 @@ import { SubmissionVerifierService } from "./blockchain/oracle/submission-verifi
       provide: APP_GUARD,
       useClass: KycGuard,
     },
+    SubmissionVerifierService,
   ],
 })
 export class AppModule implements OnModuleInit {
