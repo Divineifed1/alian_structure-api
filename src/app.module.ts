@@ -65,6 +65,7 @@ import { DeFiRiskAssessment } from "./defi/defi/entities/defi-risk-assessment.en
 // Alerts entities
 import { Alert } from "./growth/alerts/entities/alert.entity";
 import { AlertTriggerLog } from "./growth/alerts/entities/alert-trigger-log.entity";
+import { AlertPreference } from "./growth/alerts/entities/alert-preference.entity";
 
 // Guards
 import { APP_FILTER } from "@nestjs/core";
@@ -139,6 +140,7 @@ import { SubmissionVerifierService } from "./blockchain/oracle/submission-verifi
             DeFiRiskAssessment,
             Alert,
             AlertTriggerLog,
+            AlertPreference,
           ],
           synchronize: !isProduction,
           logging: isProduction ? ["error"] : ["error", "warn", "schema"],
