@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext, ConflictException, BadRequestException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NonceGuard } from './nonce.guard';
-import { SubmissionNonce } from '../../oracle/entities/submission-nonce.entity';
+import { SubmissionNonce } from '../../blockchain/oracle/entities/submission-nonce.entity';
 
 const mockNonceRepository = {
   findOne: jest.fn(),
