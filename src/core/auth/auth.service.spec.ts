@@ -4,6 +4,7 @@ import { JwtService } from "@nestjs/jwt";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { User, UserRole, KycStatus } from "../user/entities/user.entity";
 import { Repository } from "typeorm";
+import { TokenBlacklistService } from "./token-blacklist.service";
 import {
   ConflictException,
   UnauthorizedException,
@@ -54,6 +55,11 @@ describe("AuthService", () => {
     create: jest.fn(),
   };
 
+  const mockTokenBlacklistService = {
+    revoke: jest.fn(),
+    isRevoked: jest.fn().mockReturnValue(false),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -65,6 +71,10 @@ describe("AuthService", () => {
         {
           provide: getRepositoryToken(User),
           useValue: mockUserRepository,
+        },
+        {
+          provide: TokenBlacklistService,
+          useValue: mockTokenBlacklistService,
         },
       ],
     }).compile();
@@ -104,6 +114,7 @@ describe("AuthService", () => {
           email: "test@example.com",
           username: "testuser",
           role: UserRole.USER,
+          referralCode: "ABC123",
         },
       });
       expect(mockUserRepository.findOne).toHaveBeenCalledWith({
@@ -161,6 +172,7 @@ describe("AuthService", () => {
           email: "test@example.com",
           username: "testuser",
           role: UserRole.USER,
+          referralCode: "ABC123",
         },
       });
       expect(bcrypt.compare).toHaveBeenCalledWith(
@@ -243,6 +255,7 @@ describe("AuthService", () => {
           email: "test@example.com",
           username: "testuser",
           role: UserRole.USER,
+          referralCode: "ABC123",
         },
       });
     });
