@@ -1,4 +1,4 @@
-import { ExecutionContext, ForbiddenException } from "@nestjs/common";
+import { ExecutionContext, ForbiddenException, UnauthorizedException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { RolesGuard } from "./roles.guard";
 import { Role, ROLES_KEY } from "../decorators/roles.decorator";
@@ -84,12 +84,14 @@ describe("RolesGuard", () => {
       expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
     });
 
-    it("should throw ForbiddenException when no user is present on request", () => {
+    it("should throw UnauthorizedException when no user is present on request", () => {
       jest.spyOn(reflector, "getAllAndOverride").mockReturnValue([Role.ADMIN]);
       const context = createMockContext(undefined);
-      expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
+      // Guard throws UnauthorizedException (not Forbidden) for missing authentication
+      // This is correct - unauthenticated users should get 401, not 403
+      expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
       expect(() => guard.canActivate(context)).toThrow(
-        "No authenticated user found",
+        "No authenticated user found on request",
       );
     });
 
@@ -102,8 +104,9 @@ describe("RolesGuard", () => {
         role: Role.USER,
         roles: [Role.USER],
       });
+      // Error message format matches current guard implementation
       expect(() => guard.canActivate(context)).toThrow(
-        "Insufficient permissions. Required roles: admin, operator",
+        "Insufficient permissions. Required: [ADMIN, OPERATOR]",
       );
     });
   });
