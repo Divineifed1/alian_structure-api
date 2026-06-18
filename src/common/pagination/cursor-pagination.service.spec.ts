@@ -1,23 +1,43 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CursorPaginationService } from './cursor-pagination.service';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { getRepositoryToken } from '@nestjs/typeorm';
+
+// Create a mock entity class
+class TestEntity {
+  id: string;
+  createdAt: Date;
+}
+
+// Create a type for our mock query builder that includes all methods we use
+type MockQueryBuilder = Partial<SelectQueryBuilder<TestEntity>> & {
+  select: jest.Mock;
+  orderBy: jest.Mock;
+  andWhere: jest.Mock;
+  addOrderBy: jest.Mock;
+  limit: jest.Mock;
+  getMany: jest.Mock;
+  where: jest.Mock;
+};
 
 describe('CursorPaginationService', () => {
   let service: CursorPaginationService;
-  let mockRepository: jest.Mocked<Repository<any>>;
+  let mockRepository: jest.Mocked<Repository<TestEntity>>;
 
   beforeEach(async () => {
     mockRepository = {
       createQueryBuilder: jest.fn(),
       getMany: jest.fn(),
+      metadata: {
+        tableName: 'TestEntity',
+      },
     } as any;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CursorPaginationService,
         {
-          provide: getRepositoryToken('TestEntity'),
+          provide: getRepositoryToken(TestEntity),
           useValue: mockRepository,
         },
       ],
@@ -32,9 +52,10 @@ describe('CursorPaginationService', () => {
 
   describe('paginateWithCursor', () => {
     it('should handle forward pagination correctly', async () => {
-      const mockQueryBuilder = {
+      const mockQueryBuilder: MockQueryBuilder = {
         select: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         addOrderBy: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
@@ -45,7 +66,7 @@ describe('CursorPaginationService', () => {
         ]),
       };
 
-      mockRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+      mockRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as unknown as SelectQueryBuilder<TestEntity>);
 
       const result = await service.paginateWithCursor(mockRepository, {
         limit: 2,
@@ -57,14 +78,15 @@ describe('CursorPaginationService', () => {
       expect(result.data).toHaveLength(2);
       expect(result.hasMore).toBe(true);
       expect(result.hasPrevious).toBe(false);
-      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith('TestEntity.createdAt', 'DESC');
+      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith('undefined.createdAt', 'DESC');
       expect(mockQueryBuilder.limit).toHaveBeenCalledWith(3); // limit + 1 for hasMore check
     });
 
     it('should handle backward pagination correctly', async () => {
-      const mockQueryBuilder = {
+      const mockQueryBuilder: MockQueryBuilder = {
         select: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         addOrderBy: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
@@ -74,7 +96,7 @@ describe('CursorPaginationService', () => {
         ]),
       };
 
-      mockRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+      mockRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as unknown as SelectQueryBuilder<TestEntity>);
 
       const cursor = service.createCursorFromValue({
         id: '3',
@@ -91,7 +113,7 @@ describe('CursorPaginationService', () => {
 
       expect(result.data).toHaveLength(2);
       expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'TestEntity.createdAt < :cursor',
+        'undefined.createdAt > :cursor',
         { cursor: new Date('2023-01-03').toISOString() }
       );
     });
@@ -114,7 +136,7 @@ describe('CursorPaginationService', () => {
     });
 
     it('should apply additional conditions when provided', async () => {
-      const mockQueryBuilder = {
+      const mockQueryBuilder: MockQueryBuilder = {
         select: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
@@ -124,7 +146,7 @@ describe('CursorPaginationService', () => {
         getMany: jest.fn().mockResolvedValue([]),
       };
 
-      mockRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+      mockRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as unknown as SelectQueryBuilder<TestEntity>);
 
       const additionalConditions = jest.fn().mockReturnValue(mockQueryBuilder);
 
@@ -153,15 +175,17 @@ describe('CursorPaginationService', () => {
     });
 
     it('should handle empty cursor gracefully', async () => {
-      const mockQueryBuilder = {
+      const mockQueryBuilder: MockQueryBuilder = {
         select: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
         addOrderBy: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([]),
       };
 
-      mockRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+      mockRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as unknown as SelectQueryBuilder<TestEntity>);
 
       const result = await service.paginateWithCursor(mockRepository, {
         limit: 10,

@@ -8,7 +8,7 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, Not } from "typeorm";
 import { verifyMessage } from "ethers";
 import { ChallengeService } from "./challenge.service";
 import { User } from "../user/entities/user.entity";
@@ -302,9 +302,11 @@ export class WalletAuthService {
     });
 
     // Prevent unlinking the last active wallet without recovery setup
+    console.log("activeWallets.length", activeWallets.length);
     if (activeWallets.length === 1) {
       const user = await this.userRepository.findOne({ where: { id: userId } });
-      if (!user?.emailVerified) {
+      console.log("user.emailVerified", user?.emailVerified, "user.email", user?.email);
+      if (!user || !user.email || !user.emailVerified) {
         throw new BadRequestException(
           "Cannot unlink your only wallet without verified email for recovery",
         );
@@ -318,7 +320,7 @@ export class WalletAuthService {
     // If this was the primary wallet, set a new primary
     if (wallet.isPrimary) {
       const remainingWallet = await this.walletRepository.findOne({
-        where: { userId, status: WalletStatus.ACTIVE, id: walletId },
+        where: { userId, status: WalletStatus.ACTIVE, id: Not(walletId) },
         order: { createdAt: "ASC" },
       });
 
