@@ -4,6 +4,7 @@ import { Repository } from "typeorm";
 import { PerformanceMetric } from "../entities/performance-metric.entity";
 import { Portfolio } from "../entities/portfolio.entity";
 import { PortfolioAsset } from "../entities/portfolio-asset.entity";
+import { TimeRange, PerformanceResponseDto, AllocationResponseDto, ComparisonResponseDto } from "../dto/performance.dto";
 
 @Injectable()
 export class PerformanceAnalyticsService {
@@ -300,5 +301,109 @@ export class PerformanceAnalyticsService {
     }
 
     return attribution;
+  }
+
+  private getStartDateFromTimeRange(timeRange: TimeRange): Date {
+    const now = new Date();
+    switch (timeRange) {
+      case TimeRange.ONE_MONTH:
+        return new Date(now.setMonth(now.getMonth() - 1));
+      case TimeRange.THREE_MONTHS:
+        return new Date(now.setMonth(now.getMonth() - 3));
+      case TimeRange.SIX_MONTHS:
+        return new Date(now.setMonth(now.getMonth() - 6));
+      case TimeRange.ONE_YEAR:
+        return new Date(now.setFullYear(now.getFullYear() - 1));
+      case TimeRange.ALL:
+      default:
+        return new Date(0);
+    }
+  }
+
+  async getPortfolioPerformance(portfolioId: string, timeRange: TimeRange): Promise<PerformanceResponseDto> {
+    const startDate = this.getStartDateFromTimeRange(timeRange);
+    const [portfolio, returnPercentage, volatility, sharpeRatio, maxDrawdown] = await Promise.all([
+      this.portfolioRepository.findOneBy({ id: portfolioId }),
+      this.calculateCumulativeReturn(portfolioId, startDate),
+      this.calculateVolatility(portfolioId),
+      this.calculateSharpeRatio(portfolioId),
+      this.calculateMaxDrawdown(portfolioId),
+    ]);
+
+    const totalValue = portfolio?.assets?.reduce((sum, asset) => sum + (asset.quantity * asset.currentPrice), 0) || 0;
+    const now = new Date();
+
+    return {
+      portfolioId,
+      timeRange,
+      totalValue,
+      returnPercentage,
+      volatility,
+      sharpeRatio,
+      maxDrawdown,
+      timestamp: now,
+      calculationDate: now,
+    };
+  }
+
+  async getPortfolioAllocation(portfolioId: string): Promise<AllocationResponseDto> {
+    const portfolio = await this.portfolioRepository.findOne({
+      where: { id: portfolioId },
+      relations: ["assets"],
+    });
+
+    const totalValue = portfolio?.assets?.reduce((sum, asset) => sum + (asset.quantity * asset.currentPrice), 0) || 0;
+    const assets = portfolio?.assets?.map(asset => ({
+      ticker: asset.ticker,
+      name: asset.name,
+      quantity: asset.quantity,
+      currentPrice: asset.currentPrice,
+      value: asset.quantity * asset.currentPrice,
+      percentage: totalValue > 0 ? (asset.quantity * asset.currentPrice) / totalValue : 0,
+    })) || [];
+    const now = new Date();
+
+    return {
+      portfolioId,
+      assets,
+      timestamp: now,
+      calculationDate: now,
+    };
+  }
+
+  async getPerformanceHistory(portfolioId: string, timeRange: TimeRange): Promise<Array<{ date: Date; value: number; return: number }>> {
+    const startDate = this.getStartDateFromTimeRange(timeRange);
+    const metrics = await this.metricRepository.find({
+      where: {
+        portfolioId,
+        dateTime: startDate ? { $gte: startDate } as any : undefined,
+      },
+      order: { dateTime: "ASC" },
+    });
+
+    if (metrics.length === 0) return [];
+
+    const firstValue = metrics[0].portfolioValue;
+    return metrics.map(metric => ({
+      date: metric.dateTime,
+      value: metric.portfolioValue,
+      return: (metric.portfolioValue - firstValue) / firstValue,
+    }));
+  }
+
+  async getBenchmarkComparison(portfolioId: string, timeRange: TimeRange): Promise<ComparisonResponseDto> {
+    const portfolioReturn = await this.calculateCumulativeReturn(portfolioId, this.getStartDateFromTimeRange(timeRange));
+    const benchmarkReturn = 0.08; // 8% annual benchmark return (placeholder)
+    const now = new Date();
+
+    return {
+      portfolioId,
+      timeRange,
+      portfolioReturn,
+      benchmarkReturn,
+      outperformance: portfolioReturn - benchmarkReturn,
+      timestamp: now,
+      calculationDate: now,
+    };
   }
 }

@@ -1,4 +1,18 @@
-import { IsOptional, IsNumber, IsDateString } from "class-validator";
+import { IsOptional, IsNumber, IsDateString, IsEnum } from "class-validator";
+
+export enum TimeRange {
+  ONE_MONTH = "1M",
+  THREE_MONTHS = "3M",
+  SIX_MONTHS = "6M",
+  ONE_YEAR = "1Y",
+  ALL = "ALL",
+}
+
+export class TimeRangeDto {
+  @IsOptional()
+  @IsEnum(TimeRange)
+  timeRange?: TimeRange;
+}
 
 export class GetPerformanceMetricsDto {
   @IsOptional()
@@ -48,4 +62,40 @@ export class PortfolioSummaryDto {
   maxDrawdown?: number;
   lastRebalanceDate?: Date;
   nextRebalanceDate?: Date;
+}
+
+export class PerformanceResponseDto {
+  portfolioId: string;
+  timeRange: TimeRange;
+  totalValue: number;
+  returnPercentage: number;
+  volatility: number;
+  sharpeRatio: number;
+  maxDrawdown: number;
+  timestamp: Date;
+  calculationDate: Date;
+}
+
+export class AllocationResponseDto {
+  portfolioId: string;
+  assets: Array<{
+    ticker: string;
+    name: string;
+    quantity: number;
+    currentPrice: number;
+    value: number;
+    percentage: number;
+  }>;
+  timestamp: Date;
+  calculationDate: Date;
+}
+
+export class ComparisonResponseDto {
+  portfolioId: string;
+  timeRange: TimeRange;
+  portfolioReturn: number;
+  benchmarkReturn: number;
+  outperformance: number;
+  timestamp: Date;
+  calculationDate: Date;
 }
