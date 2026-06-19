@@ -15,6 +15,7 @@ import { PortfolioStatus } from "../entities/portfolio.entity";
 import { ModernPortfolioTheory } from "../algorithms/modern-portfolio-theory";
 import { BlackLittermanModel } from "../algorithms/black-litterman";
 import { ConstraintOptimizer } from "../algorithms/constraint-optimizer";
+import { PerformanceAnalyticsService } from "./performance-analytics.service";
 
 @Injectable()
 export class PortfolioService {
@@ -29,6 +30,7 @@ export class PortfolioService {
     private optimizationRepository: Repository<OptimizationHistory>,
     @InjectRepository(RiskProfile)
     private riskProfileRepository: Repository<RiskProfile>,
+    private performanceService: PerformanceAnalyticsService,
   ) {}
 
   /**
@@ -189,6 +191,20 @@ export class PortfolioService {
 
     await this.portfolioRepository.save(portfolio);
     await this.portfolioAssetRepository.save(assets);
+
+    // Keep performance history current whenever value/allocation changes.
+    try {
+      await this.performanceService.recordSnapshot(
+        portfolioId,
+        totalValue,
+        allocation,
+      );
+    } catch (error) {
+      // Recording a snapshot must never block a portfolio update.
+      this.logger.warn(
+        `Failed to record performance snapshot for ${portfolioId}: ${error.message}`,
+      );
+    }
   }
 
   /**

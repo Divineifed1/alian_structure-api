@@ -26,7 +26,10 @@ import { CreatePortfolioDto, UpdatePortfolioDto } from "./dto/portfolio.dto";
 import { AddAssetToPortfolioDto } from "./dto/portfolio-asset.dto";
 import { ApproveOptimizationDto, CreateOptimizationDto } from "./dto/optimization.dto";
 import { ExecuteRebalancingDto, TriggerRebalancingDto } from "./dto/rebalancing.dto";
-import { GetPerformanceMetricsDto } from "./dto/performance.dto";
+import {
+  GetPerformanceMetricsDto,
+  CalculatePerformanceDto,
+} from "./dto/performance.dto";
 import { CreateBacktestDto } from "./dto/backtest.dto";
 
 @Controller("portfolio")
@@ -239,6 +242,19 @@ export class PortfolioController {
   @UseGuards(PortfolioOwnerGuard)
   async getPerformanceSummary(@Param("portfolioId") portfolioId: string) {
     return this.performanceService.getPerformanceSummary(portfolioId);
+  }
+
+  @Get("portfolios/:portfolioId/performance")
+  @ApiOperation({
+    summary:
+      "Calculate comprehensive portfolio performance (value, ROI, allocation, TWR, Sharpe, drawdown, benchmark)",
+  })
+  @UseGuards(PortfolioOwnerGuard)
+  async calculatePerformance(
+    @Param("portfolioId") portfolioId: string,
+    @Query() dto: CalculatePerformanceDto,
+  ) {
+    return this.performanceService.calculatePerformance(portfolioId, dto);
   }
 
   @Get("portfolios/:portfolioId/metrics")

@@ -1,9 +1,14 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { PerformanceMetric } from "../entities/performance-metric.entity";
 import { Portfolio } from "../entities/portfolio.entity";
-import { PortfolioAsset } from "../entities/portfolio-asset.entity";
+import { AssetType } from "../entities/portfolio-asset.entity";
+import { PerformanceCalculations } from "../algorithms/performance-calculations";
+import {
+  CalculatePerformanceDto,
+  PortfolioPerformanceDto,
+} from "../dto/performance.dto";
 
 @Injectable()
 export class PerformanceAnalyticsService {
@@ -15,6 +20,153 @@ export class PerformanceAnalyticsService {
     @InjectRepository(Portfolio)
     private portfolioRepository: Repository<Portfolio>,
   ) {}
+
+  /**
+   * Map a granular asset type onto a high-level allocation category.
+   */
+  private mapAssetTypeToCategory(type: AssetType): string {
+    switch (type) {
+      case AssetType.CRYPTOCURRENCY:
+        return "crypto";
+      case AssetType.STOCK:
+      case AssetType.ETF:
+      case AssetType.MUTUAL_FUND:
+        return "stocks";
+      case AssetType.COMMODITY:
+        return "commodities";
+      case AssetType.BOND:
+        return "bonds";
+      case AssetType.REAL_ESTATE:
+        return "real_estate";
+      default:
+        return "other";
+    }
+  }
+
+  /**
+   * Compute a comprehensive set of portfolio performance metrics:
+   * total value, ROI, allocation by asset and category, time-weighted return,
+   * Sharpe ratio, max drawdown and (optionally) benchmark comparison.
+   */
+  async calculatePerformance(
+    portfolioId: string,
+    dto: CalculatePerformanceDto = {},
+  ): Promise<PortfolioPerformanceDto> {
+    const portfolio = await this.portfolioRepository.findOne({
+      where: { id: portfolioId },
+      relations: ["assets"],
+    });
+
+    if (!portfolio) {
+      throw new NotFoundException("Portfolio not found");
+    }
+
+    const assets = portfolio.assets || [];
+    const riskFreeRate = dto.riskFreeRate ?? 0.02;
+    const periodsPerYear =
+      dto.periodsPerYear ?? PerformanceCalculations.TRADING_DAYS_PER_YEAR;
+
+    // Total value and cost basis (decimal columns deserialize as strings).
+    const totalValue = PerformanceCalculations.sum(
+      assets.map((a) => Number(a.value) || 0),
+    );
+    const totalCostBasis = PerformanceCalculations.sum(
+      assets.map((a) => Number(a.costBasis) || 0),
+    );
+    const roi = PerformanceCalculations.roi(totalValue, totalCostBasis);
+
+    // Allocation by asset.
+    const assetAmounts: Record<string, number> = {};
+    for (const a of assets) {
+      assetAmounts[a.ticker] =
+        (assetAmounts[a.ticker] || 0) + (Number(a.value) || 0);
+    }
+    const allocationByAsset =
+      PerformanceCalculations.allocationPercentages(assetAmounts);
+
+    // Allocation by category (crypto, stocks, commodities, ...).
+    const categoryAmounts: Record<string, number> = {};
+    for (const a of assets) {
+      const category = this.mapAssetTypeToCategory(a.type);
+      categoryAmounts[category] =
+        (categoryAmounts[category] || 0) + (Number(a.value) || 0);
+    }
+    const allocationByCategory =
+      PerformanceCalculations.allocationPercentages(categoryAmounts);
+
+    // Historical value series for time-series metrics.
+    const metrics = await this.metricRepository.find({
+      where: { portfolioId },
+      order: { dateTime: "ASC" },
+    });
+    const values = metrics.map((m) => Number(m.portfolioValue));
+    const returns = PerformanceCalculations.simpleReturns(values);
+
+    const timeWeightedReturn =
+      PerformanceCalculations.timeWeightedReturn(returns);
+    const volatility = PerformanceCalculations.annualizedVolatility(
+      returns,
+      periodsPerYear,
+    );
+    const sharpeRatio = PerformanceCalculations.sharpeRatio(
+      returns,
+      riskFreeRate,
+      periodsPerYear,
+    );
+    const maxDrawdown = PerformanceCalculations.maxDrawdown(values);
+
+    let benchmark: PortfolioPerformanceDto["benchmark"];
+    if (dto.benchmarkReturns && dto.benchmarkReturns.length >= 2) {
+      benchmark = PerformanceCalculations.benchmarkComparison(
+        returns,
+        dto.benchmarkReturns,
+        riskFreeRate,
+        periodsPerYear,
+      );
+    }
+
+    return {
+      portfolioId: portfolio.id,
+      portfolioName: portfolio.name,
+      totalValue,
+      totalCostBasis,
+      roi,
+      allocationByAsset,
+      allocationByCategory,
+      timeWeightedReturn,
+      sharpeRatio,
+      volatility,
+      maxDrawdown,
+      benchmark,
+      dataPoints: values.length,
+      calculatedAt: new Date(),
+    };
+  }
+
+  /**
+   * Append a performance snapshot for a portfolio, deriving the previous value
+   * and daily return from the most recent recorded metric. Called whenever a
+   * portfolio's value/allocation changes so history stays current.
+   */
+  async recordSnapshot(
+    portfolioId: string,
+    portfolioValue: number,
+    allocation: Record<string, number>,
+  ): Promise<PerformanceMetric> {
+    const last = await this.metricRepository.findOne({
+      where: { portfolioId },
+      order: { dateTime: "DESC" },
+    });
+
+    const previousValue = last ? Number(last.portfolioValue) : undefined;
+
+    return this.recordMetrics(
+      portfolioId,
+      portfolioValue,
+      allocation,
+      previousValue,
+    );
+  }
 
   /**
    * Record performance metrics for a portfolio

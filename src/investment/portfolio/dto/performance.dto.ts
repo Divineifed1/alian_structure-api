@@ -1,4 +1,12 @@
-import { IsOptional, IsNumber, IsDateString } from "class-validator";
+import {
+  IsOptional,
+  IsNumber,
+  IsDateString,
+  IsArray,
+  Min,
+  Max,
+} from "class-validator";
+import { Type } from "class-transformer";
 
 export class GetPerformanceMetricsDto {
   @IsOptional()
@@ -31,6 +39,75 @@ export class PerformanceMetricResponseDto {
   allocation?: Record<string, number>;
   assetContribution?: Record<string, number>;
   riskContribution?: Record<string, number>;
+}
+
+export class CalculatePerformanceDto {
+  /** Annual risk-free rate (fraction, e.g. 0.02 for 2%) used by the Sharpe ratio. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  riskFreeRate?: number;
+
+  /** Optional benchmark return series (fractions) for comparison metrics. */
+  @IsOptional()
+  @IsArray()
+  @Type(() => Number)
+  @IsNumber({}, { each: true })
+  benchmarkReturns?: number[];
+
+  /** Number of return periods per year for annualisation (default 252). */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  periodsPerYear?: number;
+}
+
+export interface BenchmarkComparisonResultDto {
+  excessReturn: number;
+  beta: number;
+  alpha: number;
+  correlation: number;
+  trackingError: number;
+  informationRatio: number;
+}
+
+export interface MaxDrawdownResultDto {
+  maxDrawdown: number;
+  peakIndex: number;
+  troughIndex: number;
+  peakValue: number;
+  troughValue: number;
+}
+
+export class PortfolioPerformanceDto {
+  portfolioId: string;
+  portfolioName: string;
+  /** Total current portfolio value (sum of asset values). */
+  totalValue: number;
+  /** Total cost basis across assets. */
+  totalCostBasis: number;
+  /** Return on investment as a fraction (0.1 === 10%). */
+  roi: number;
+  /** Allocation percentage by asset ticker (sums to 100). */
+  allocationByAsset: Record<string, number>;
+  /** Allocation percentage by category: crypto, stocks, commodities, etc. */
+  allocationByCategory: Record<string, number>;
+  /** Time-weighted return over recorded history (fraction). */
+  timeWeightedReturn: number;
+  /** Annualised Sharpe ratio (using the supplied risk-free rate). */
+  sharpeRatio: number;
+  /** Annualised volatility of historical returns. */
+  volatility: number;
+  /** Maximum peak-to-trough drawdown over recorded history. */
+  maxDrawdown: MaxDrawdownResultDto;
+  /** Benchmark comparison, present only when benchmark data is supplied. */
+  benchmark?: BenchmarkComparisonResultDto;
+  /** Number of historical snapshots used for time-series metrics. */
+  dataPoints: number;
+  calculatedAt: Date;
 }
 
 export class PortfolioSummaryDto {
