@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import {
   ExceptionFilter,
   Catch,
@@ -53,6 +54,28 @@ export class GlobalExceptionFilter implements ExceptionFilter {
             ? exceptionResponse
             : exceptionResponse;
       }
+    }
+
+    // Report production-grade errors to Sentry for grouping, breadcrumbs, and alerting.
+    if (Sentry.getCurrentHub().getClient()) {
+      Sentry.withScope((scope) => {
+        scope.setTag("http.method", request.method);
+        scope.setTag("http.status_code", String(status));
+        scope.setTag("correlation_id", correlationId);
+        scope.setExtra("path", request.url);
+        scope.setExtra("query", request.query);
+        scope.setExtra("params", request.params);
+        scope.setUser({ ip_address: request.ip });
+
+        const level = status >= 500 ? Sentry.Severity.Error : Sentry.Severity.Warning;
+        scope.setLevel(level);
+
+        const errorToCapture =
+          exception instanceof Error ? exception : new Error(String(exception));
+        if (status >= 500 || status === 401 || status === 403) {
+          Sentry.captureException(errorToCapture);
+        }
+      });
     }
 
     // Log full details server-side only

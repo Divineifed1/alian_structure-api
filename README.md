@@ -178,7 +178,17 @@ Configuration & deployment
 - Use the simulator environment for safe, deterministic testing before enabling live on‑chain submission.
 - Run behind an API gateway for rate limiting and authentication; use TLS for all external endpoints.
 - Store signing keys in a KMS and follow key rotation practices.
+- Use Sentry for error tracking and performance monitoring in production.
 - **Security:** Complete `SECURITY_AUDIT.md` before production deployment.
+
+### Sentry configuration
+- `SENTRY_DSN` - Sentry project data source name.
+- `SENTRY_ENVIRONMENT` - Environment tag (`development`, `staging`, `production`).
+- `SENTRY_RELEASE` - Release version for deployment tracking.
+- `SENTRY_TRACES_SAMPLE_RATE` - Performance sampling rate (0.0 to 1.0).
+
+Operational notes
+-----------------
 
 Operational notes
 -----------------

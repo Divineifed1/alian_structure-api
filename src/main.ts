@@ -9,8 +9,13 @@ import { SanitizePipe } from "./common/pipes/sanitize.pipe";
 import { createCorsConfig } from "./config/cors.config";
 import { createHelmetConfig } from "./config/helmet.config";
 import { setupSwagger } from "./config/swagger.config";
+import * as Sentry from "@sentry/node";
+import { initSentry } from "./config/sentry";
+import { sentryBreadcrumbMiddleware } from "./common/middleware/sentry.middleware";
 
 async function bootstrap() {
+  initSentry();
+
   // Initialize tracing safely
   try {
     const { startTracing } = await import("./config/tracing");
@@ -29,6 +34,11 @@ async function bootstrap() {
   if (configService.get("NODE_ENV") === "production") {
     app.useLogger(["error", "warn"]);
   }
+
+  // Initialize Sentry request and performance monitoring middleware
+  app.use(Sentry.Handlers.requestHandler());
+  app.use(Sentry.Handlers.tracingHandler());
+  app.use(sentryBreadcrumbMiddleware);
 
   // Security Headers - Helmet
   app.use(helmet.default(createHelmetConfig()));
@@ -72,11 +82,31 @@ bootstrap().catch((error) => {
 
 // Handle uncaught exceptions
 process.on("uncaughtException", (error: Error) => {
+  if (Sentry.getCurrentHub().getClient()) {
+    Sentry.captureException(error);
+    Sentry.flush(2000).finally(() => {
+      logger.error({ error }, "Uncaught Exception");
+      process.exit(1);
+    });
+    return;
+  }
+
   logger.error({ error }, "Uncaught Exception");
   process.exit(1);
 });
 
 process.on("unhandledRejection", (reason: any) => {
-  logger.error("Unhandled Rejection:", reason?.message || reason, reason?.stack || "");
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+
+  if (Sentry.getCurrentHub().getClient()) {
+    Sentry.captureException(error);
+    Sentry.flush(2000).finally(() => {
+      logger.error("Unhandled Rejection:", error.message, error.stack || "");
+      process.exit(1);
+    });
+    return;
+  }
+
+  logger.error("Unhandled Rejection:", error.message, error.stack || "");
   process.exit(1);
 });
