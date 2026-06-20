@@ -4,17 +4,18 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
-  ApiSecurity,
 } from "@nestjs/swagger";
 import { AppService } from "./app.service";
 import { RateLimit } from "./common/decorators/rate-limit.decorator";
 import { JwtAuthGuard } from "./core/auth/jwt.guard";
+import { Public } from "./common/decorators/public.decorator";
 
-@ApiTags("Health")
+@ApiTags("Info")
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
+  @Public()
   @Get("health")
   @RateLimit({ level: "free", limit: 2, windowMs: 60000 }) // Max 2 requests per minute for health
   @ApiOperation({
@@ -41,6 +42,7 @@ export class AppController {
     return this.appService.getHealth();
   }
 
+  @Public()
   @Get("info")
   @RateLimit({ level: "standard" }) // Default standard level
   @ApiOperation({

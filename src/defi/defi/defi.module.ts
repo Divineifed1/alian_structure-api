@@ -1,6 +1,7 @@
-import { Module } from "@nestjs/common";
+import { Module, OnModuleInit } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { BullModule } from "@nestjs/bull";
+import { DiscoveryModule, DiscoveryService } from "@nestjs/core";
 
 // Entities
 import { DeFiPosition } from "./entities/defi-position.entity";
@@ -19,6 +20,7 @@ import { TransactionOptimizationService } from "./services/transaction-optimizat
 import { AaveAdapter } from "./protocols/aave.adapter";
 import { CompoundAdapter } from "./protocols/compound.adapter";
 import { ProtocolRegistry } from "./protocols/protocol-registry";
+import { ProtocolAdapter } from "./protocols/protocol-adapter.interface";
 
 // Controller
 import { DeFiController } from "./defi.controller";
@@ -87,6 +89,7 @@ import { TradeLockService } from "./trade-lock.service";
         },
       },
     ),
+    DiscoveryModule,
   ],
   providers: [
     // Protocol Adapters
@@ -111,4 +114,28 @@ import { TradeLockService } from "./trade-lock.service";
     TradeLockService,
   ],
 })
-export class DeFiModule {}
+export class DeFiModule implements OnModuleInit {
+  constructor(
+    private readonly protocolRegistry: ProtocolRegistry,
+    private readonly discoveryService: DiscoveryService,
+  ) {}
+
+  onModuleInit() {
+    // Auto-discover and register all protocol adapters
+    const providers = this.discoveryService.getProviders();
+
+    providers.forEach((wrapper) => {
+      const instance = wrapper.instance;
+      if (
+        instance &&
+        typeof instance === "object" &&
+        "name" in instance &&
+        "supportedChains" in instance &&
+        typeof instance.getPosition === "function" &&
+        wrapper.metatype?.name?.endsWith("Adapter")
+      ) {
+        this.protocolRegistry.register(instance as ProtocolAdapter);
+      }
+    });
+  }
+}
