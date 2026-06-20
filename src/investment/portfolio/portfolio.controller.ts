@@ -13,7 +13,7 @@ import {
   HttpCode,
   HttpStatus,
 } from "@nestjs/common";
-import { ApiTags, ApiBearerAuth, ApiOperation } from "@nestjs/swagger";
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiOkResponse } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
 import { JwtAuthGuard } from "src/core/auth/jwt.guard";
 import { PortfolioService } from "./services/portfolio.service";
@@ -26,7 +26,7 @@ import { CreatePortfolioDto, UpdatePortfolioDto } from "./dto/portfolio.dto";
 import { AddAssetToPortfolioDto } from "./dto/portfolio-asset.dto";
 import { ApproveOptimizationDto, CreateOptimizationDto } from "./dto/optimization.dto";
 import { ExecuteRebalancingDto, TriggerRebalancingDto } from "./dto/rebalancing.dto";
-import { GetPerformanceMetricsDto } from "./dto/performance.dto";
+import { GetPerformanceMetricsDto, TimeRange, TimeRangeDto } from "./dto/performance.dto";
 import { CreateBacktestDto } from "./dto/backtest.dto";
 
 @Controller("portfolio")
@@ -356,5 +356,54 @@ export class PortfolioController {
   })
   async getPredictorStats() {
     return this.mlService.getPredictorStats();
+  }
+
+  @Get(":id/performance")
+  @ApiOperation({ summary: "Get portfolio performance metrics" })
+  @ApiQuery({ name: "timeRange", enum: TimeRange, required: false })
+  @UseGuards(JwtAuthGuard, PortfolioOwnerGuard)
+  async getPerformance(
+    @Param("id") id: string,
+    @Query() query: TimeRangeDto,
+  ) {
+    return this.performanceService.getPortfolioPerformance(
+      id,
+      query.timeRange || TimeRange.ONE_YEAR,
+    );
+  }
+
+  @Get(":id/allocation")
+  @ApiOperation({ summary: "Get portfolio asset allocation" })
+  @UseGuards(JwtAuthGuard, PortfolioOwnerGuard)
+  async getAllocation(@Param("id") id: string) {
+    return this.performanceService.getPortfolioAllocation(id);
+  }
+
+  @Get(":id/performance-history")
+  @ApiOperation({ summary: "Get portfolio performance history" })
+  @ApiQuery({ name: "timeRange", enum: TimeRange, required: false })
+  @UseGuards(JwtAuthGuard, PortfolioOwnerGuard)
+  async getPerformanceHistory(
+    @Param("id") id: string,
+    @Query() query: TimeRangeDto,
+  ) {
+    return this.performanceService.getPerformanceHistory(
+      id,
+      query.timeRange || TimeRange.ONE_YEAR,
+    );
+  }
+
+  @Get(":id/comparison")
+  @ApiOperation({ summary: "Get portfolio benchmark comparison" })
+  @ApiQuery({ name: "timeRange", enum: TimeRange, required: false })
+  @UseGuards(JwtAuthGuard, PortfolioOwnerGuard)
+  async getComparison(
+    @Param("id") id: string,
+    @Query() query: TimeRangeDto,
+  ) {
+    return this.performanceService.getBenchmarkComparison(
+      id,
+      query.timeRange || TimeRange.ONE_YEAR,
+    );
   }
 }
