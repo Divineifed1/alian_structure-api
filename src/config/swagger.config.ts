@@ -36,6 +36,7 @@ export function setupSwagger(app: INestApplication): void {
       },
       "api-key",
     )
+    .addTag("Health", "Liveness, readiness, and startup probes for Kubernetes orchestration")
     .addTag("Authentication", "User authentication and authorization")
     .addTag("Users", "User management operations")
     .addTag("Oracle", "Oracle data submissions")

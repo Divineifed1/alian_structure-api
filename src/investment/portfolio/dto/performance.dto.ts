@@ -126,3 +126,39 @@ export class PortfolioSummaryDto {
   lastRebalanceDate?: Date;
   nextRebalanceDate?: Date;
 }
+
+export class PerformanceResponseDto {
+  portfolioId: string;
+  timeRange: TimeRange;
+  totalValue: number;
+  returnPercentage: number;
+  volatility: number;
+  sharpeRatio: number;
+  maxDrawdown: number;
+  timestamp: Date;
+  calculationDate: Date;
+}
+
+export class AllocationResponseDto {
+  portfolioId: string;
+  assets: Array<{
+    ticker: string;
+    name: string;
+    quantity: number;
+    currentPrice: number;
+    value: number;
+    percentage: number;
+  }>;
+  timestamp: Date;
+  calculationDate: Date;
+}
+
+export class ComparisonResponseDto {
+  portfolioId: string;
+  timeRange: TimeRange;
+  portfolioReturn: number;
+  benchmarkReturn: number;
+  outperformance: number;
+  timestamp: Date;
+  calculationDate: Date;
+}

@@ -1,9 +1,10 @@
-import { Module, OnModuleInit } from "@nestjs/common";
+import { Module, NestModule, MiddlewareConsumer, OnModuleInit } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { join } from "path";
 import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerModule } from "@nestjs/throttler";
+import { EventEmitterModule } from "@nestjs/event-emitter";
 import { validate } from "class-validator";
 import { plainToInstance } from "class-transformer";
 import { EnvironmentVariables } from "./config/env.validation";
@@ -27,10 +28,13 @@ import { PortfolioModule } from "./investment/portfolio/portfolio.module";
 import { RiskManagementModule } from "./investment/risk-management/risk-management.module";
 
 // Modules – defi
-import { DeFiModule } from "./defi/defi/defi.module";
+import { DeFiModule } from "./defi/defi.module";
 
 // Modules – growth
 import { AlertsModule } from "./growth/alerts/alerts.module";
+
+// Modules – health
+import { HealthModule } from "./health/health.module";
 
 // Auth entities
 import { User } from "./core/user/entities/user.entity";
@@ -56,23 +60,26 @@ import { PerformanceMetric } from "./investment/portfolio/entities/performance-m
 import { BacktestResult } from "./investment/portfolio/entities/backtest-result.entity";
 
 // DeFi entities
-import { DeFiPosition } from "./defi/defi/entities/defi-position.entity";
-import { DeFiYieldRecord } from "./defi/defi/entities/defi-yield-record.entity";
-import { DeFiTransaction } from "./defi/defi/entities/defi-transaction.entity";
-import { DeFiYieldStrategy } from "./defi/defi/entities/defi-yield-strategy.entity";
-import { DeFiRiskAssessment } from "./defi/defi/entities/defi-risk-assessment.entity";
+import { DeFiPosition } from "./defi/entities/defi-position.entity";
+import { DeFiYieldRecord } from "./defi/entities/defi-yield-record.entity";
+import { DeFiTransaction } from "./defi/entities/defi-transaction.entity";
+import { DeFiYieldStrategy } from "./defi/entities/defi-yield-strategy.entity";
+import { DeFiRiskAssessment } from "./defi/entities/defi-risk-assessment.entity";
 
 // Alerts entities
 import { Alert } from "./growth/alerts/entities/alert.entity";
 import { AlertTriggerLog } from "./growth/alerts/entities/alert-trigger-log.entity";
+import { AlertPreference } from "./growth/alerts/entities/alert-preference.entity";
 
 // Guards
 import { APP_FILTER } from "@nestjs/core";
 import { ThrottlerUserIpGuard } from "./common/guard/throttler.guard";
 import { RolesGuard } from "./common/guard/roles.guard";
 import { KycGuard } from "./common/guard/kyc.guard";
+import { StrategyAuthGuard } from "./core/auth/guards/strategy-auth.guard";
 import { GlobalExceptionFilter } from "./common/filters/global-exception.filter";
 import { SubmissionVerifierService } from "./blockchain/oracle/submission-verifier.service";
+import { LoggingMiddleware } from "./common/middleware/logging.middleware";
 
 @Module({
   imports: [
@@ -139,6 +146,7 @@ import { SubmissionVerifierService } from "./blockchain/oracle/submission-verifi
             DeFiRiskAssessment,
             Alert,
             AlertTriggerLog,
+            AlertPreference,
           ],
           synchronize: !isProduction,
           logging: isProduction ? ["error"] : ["error", "warn", "schema"],
@@ -151,6 +159,8 @@ import { SubmissionVerifierService } from "./blockchain/oracle/submission-verifi
         };
       },
     }),
+
+    EventEmitterModule.forRoot(),
 
     ThrottlerModule.forRoot({
       throttlers: [
@@ -170,6 +180,7 @@ import { SubmissionVerifierService } from "./blockchain/oracle/submission-verifi
     RiskManagementModule,
     DeFiModule,
     AlertsModule,
+    HealthModule,
   ],
 
   controllers: [AppController],
@@ -179,6 +190,10 @@ import { SubmissionVerifierService } from "./blockchain/oracle/submission-verifi
     {
       provide: APP_FILTER,
       useClass: GlobalExceptionFilter,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: StrategyAuthGuard,
     },
     {
       provide: APP_GUARD,
@@ -195,8 +210,12 @@ import { SubmissionVerifierService } from "./blockchain/oracle/submission-verifi
     SubmissionVerifierService,
   ],
 })
-export class AppModule implements OnModuleInit {
+export class AppModule implements NestModule, OnModuleInit {
   constructor(private readonly verifier: SubmissionVerifierService) {}
+
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggingMiddleware).forRoutes('*');
+  }
 
   onModuleInit() {
     this.verifier.start();

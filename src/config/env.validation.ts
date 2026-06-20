@@ -80,4 +80,16 @@ export class EnvironmentVariables {
 
   @IsString()
   EMAIL_FROM: string = '"StellAIverse" <noreply@stellaiverse.com>';
+
+  // Redis
+  @IsOptional()
+  @IsString()
+  REDIS_URL?: string;
+
+  // Health check timeouts
+  @IsOptional()
+  @IsNumber()
+  @Min(100)
+  @Transform(({ value }) => (value ? parseInt(value, 10) : 5000))
+  HEALTH_CHECK_TIMEOUT_MS?: number;
 }
