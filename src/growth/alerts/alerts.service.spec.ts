@@ -4,7 +4,10 @@ import { NotFoundException } from "@nestjs/common";
 import { AlertsService } from "./alerts.service";
 import { Alert, AlertType, AlertCondition } from "./entities/alert.entity";
 import { AlertTriggerLog } from "./entities/alert-trigger-log.entity";
-import { AlertPreference, AlertFrequency } from "./entities/alert-preference.entity";
+import {
+  AlertPreference,
+  AlertFrequency,
+} from "./entities/alert-preference.entity";
 
 const mockAlertRepo = {
   find: jest.fn(),
@@ -35,7 +38,10 @@ describe("AlertsService", () => {
         AlertsService,
         { provide: getRepositoryToken(Alert), useValue: mockAlertRepo },
         { provide: getRepositoryToken(AlertTriggerLog), useValue: mockLogRepo },
-        { provide: getRepositoryToken(AlertPreference), useValue: mockPreferenceRepo },
+        {
+          provide: getRepositoryToken(AlertPreference),
+          useValue: mockPreferenceRepo,
+        },
       ],
     }).compile();
 
@@ -163,7 +169,9 @@ describe("AlertsService", () => {
 
     it("throws NotFoundException for unknown alert", async () => {
       mockAlertRepo.findOne.mockResolvedValue(null);
-      await expect(service.toggleAlert("bad", true)).rejects.toThrow(NotFoundException);
+      await expect(service.toggleAlert("bad", true)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -261,7 +269,9 @@ describe("AlertsService", () => {
       };
       mockAlertRepo.find.mockResolvedValue([alert]);
 
-      const logs = await service.evaluateAllocationDriftAlerts("u1", { ETH: 15 });
+      const logs = await service.evaluateAllocationDriftAlerts("u1", {
+        ETH: 15,
+      });
       expect(logs).toHaveLength(1);
       expect(logs[0].type).toBe(AlertType.ALLOCATION_DRIFT);
     });
@@ -280,7 +290,9 @@ describe("AlertsService", () => {
       };
       mockAlertRepo.find.mockResolvedValue([alert]);
 
-      const logs = await service.evaluateAllocationDriftAlerts("u1", { ETH: 5 });
+      const logs = await service.evaluateAllocationDriftAlerts("u1", {
+        ETH: 5,
+      });
       expect(logs).toHaveLength(0);
     });
 
@@ -298,7 +310,9 @@ describe("AlertsService", () => {
       };
       mockAlertRepo.find.mockResolvedValue([alert]);
 
-      const logs = await service.evaluateAllocationDriftAlerts("u1", { BTC: -12 });
+      const logs = await service.evaluateAllocationDriftAlerts("u1", {
+        BTC: -12,
+      });
       expect(logs).toHaveLength(1);
     });
 
@@ -316,7 +330,9 @@ describe("AlertsService", () => {
       };
       mockAlertRepo.find.mockResolvedValue([alert]);
 
-      const logs = await service.evaluateAllocationDriftAlerts("u1", { BTC: 20 });
+      const logs = await service.evaluateAllocationDriftAlerts("u1", {
+        BTC: 20,
+      });
       expect(logs).toHaveLength(0);
     });
   });
@@ -482,7 +498,9 @@ describe("AlertsService", () => {
 
     it("throws NotFoundException when deleting non-existent preference", async () => {
       mockPreferenceRepo.findOne.mockResolvedValue(null);
-      await expect(service.deletePreference("u1")).rejects.toThrow(NotFoundException);
+      await expect(service.deletePreference("u1")).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

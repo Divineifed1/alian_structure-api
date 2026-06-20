@@ -1,4 +1,11 @@
-import { IsString, IsEnum, IsNumber, IsOptional, Min, Max } from "class-validator";
+import {
+  IsString,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  Min,
+  Max,
+} from "class-validator";
 import { AlertCondition } from "../entities/alert.entity";
 
 export class CreatePriceAlertDto {
@@ -92,7 +99,14 @@ export class CreatePerformanceAlertDto {
   @Min(0)
   cooldownSeconds?: number;
 }
-import { IsString, IsEnum, IsNumber, IsOptional, Min, Max } from "class-validator";
+import {
+  IsString,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  Min,
+  Max,
+} from "class-validator";
 import { AlertCondition } from "../entities/alert.entity";
 
 export class CreatePriceAlertDto {

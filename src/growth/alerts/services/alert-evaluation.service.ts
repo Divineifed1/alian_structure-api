@@ -20,9 +20,17 @@ export class AlertEvaluationService {
   ) {}
 
   @OnEvent("portfolio.price.updated")
-  async handlePriceUpdate(payload: { asset: string; price: number }): Promise<void> {
-    this.logger.debug(`Evaluating price alerts for ${payload.asset} @ ${payload.price}`);
-    const triggered = await this.alertsService.evaluatePriceAlerts(payload.asset, payload.price);
+  async handlePriceUpdate(payload: {
+    asset: string;
+    price: number;
+  }): Promise<void> {
+    this.logger.debug(
+      `Evaluating price alerts for ${payload.asset} @ ${payload.price}`,
+    );
+    const triggered = await this.alertsService.evaluatePriceAlerts(
+      payload.asset,
+      payload.price,
+    );
     await this.dispatchTriggered(triggered, "price.updated");
   }
 
@@ -31,7 +39,9 @@ export class AlertEvaluationService {
     userId: string;
     deviations: Record<string, number>;
   }): Promise<void> {
-    this.logger.debug(`Evaluating allocation drift alerts for user ${payload.userId}`);
+    this.logger.debug(
+      `Evaluating allocation drift alerts for user ${payload.userId}`,
+    );
     const triggered = await this.alertsService.evaluateAllocationDriftAlerts(
       payload.userId,
       payload.deviations,
@@ -57,7 +67,9 @@ export class AlertEvaluationService {
     userId: string;
     performancePct: number;
   }): Promise<void> {
-    this.logger.debug(`Evaluating performance alerts for user ${payload.userId}`);
+    this.logger.debug(
+      `Evaluating performance alerts for user ${payload.userId}`,
+    );
     const triggered = await this.alertsService.evaluatePerformanceAlerts(
       payload.userId,
       payload.performancePct,

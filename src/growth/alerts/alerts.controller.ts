@@ -225,7 +225,10 @@ export class AlertsController {
   @Patch(":alertId/toggle")
   @ApiOperation({ summary: "Enable or disable a specific alert" })
   @ApiResponse({ status: 200, description: "Alert toggled" })
-  toggleAlert(@Param("alertId") alertId: string, @Body("active") active: boolean) {
+  toggleAlert(
+    @Param("alertId") alertId: string,
+    @Body("active") active: boolean,
+  ) {
     return this.alertsService.toggleAlert(alertId, active);
   }
 
@@ -243,9 +246,13 @@ export class AlertsController {
   @Post("subscribe")
   @ApiOperation({
     summary: "Subscribe to alert notifications",
-    description: "Create or update alert delivery preferences. Supports in-app, email, websocket, push channels with quiet hours, rate limiting, frequency, and per-type disable.",
+    description:
+      "Create or update alert delivery preferences. Supports in-app, email, websocket, push channels with quiet hours, rate limiting, frequency, and per-type disable.",
   })
-  @ApiResponse({ status: 201, description: "Alert preference saved successfully" })
+  @ApiResponse({
+    status: 201,
+    description: "Alert preference saved successfully",
+  })
   subscribe(@Body() dto: SubscribeAlertDto) {
     return this.alertsService.savePreference(dto);
   }
@@ -333,9 +340,13 @@ export class AlertsController {
   @Post("subscribe")
   @ApiOperation({
     summary: "Subscribe to alert notifications",
-    description: "Create or update alert delivery preferences. Supports in-app, email, websocket channels with quiet hours and rate limiting.",
+    description:
+      "Create or update alert delivery preferences. Supports in-app, email, websocket channels with quiet hours and rate limiting.",
   })
-  @ApiResponse({ status: 201, description: "Alert preference saved successfully" })
+  @ApiResponse({
+    status: 201,
+    description: "Alert preference saved successfully",
+  })
   subscribe(@Body() dto: SubscribeAlertDto) {
     return this.alertsService.savePreference(dto);
   }

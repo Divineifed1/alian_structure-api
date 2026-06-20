@@ -3,9 +3,16 @@ import { INestApplication, ValidationPipe } from "@nestjs/common";
 import * as request from "supertest";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { EventEmitterModule } from "@nestjs/event-emitter";
-import { Alert, AlertType, AlertCondition } from "../../src/growth/alerts/entities/alert.entity";
+import {
+  Alert,
+  AlertType,
+  AlertCondition,
+} from "../../src/growth/alerts/entities/alert.entity";
 import { AlertTriggerLog } from "../../src/growth/alerts/entities/alert-trigger-log.entity";
-import { AlertPreference, AlertFrequency } from "../../src/growth/alerts/entities/alert-preference.entity";
+import {
+  AlertPreference,
+  AlertFrequency,
+} from "../../src/growth/alerts/entities/alert-preference.entity";
 import { AlertsModule } from "../../src/growth/alerts/alerts.module";
 
 describe("Alert Preferences (e2e)", () => {
@@ -26,7 +33,9 @@ describe("Alert Preferences (e2e)", () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ transform: true, whitelist: true }),
+    );
     await app.init();
   });
 

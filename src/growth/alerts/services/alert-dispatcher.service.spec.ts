@@ -2,7 +2,10 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { AlertDispatcherService } from "./alert-dispatcher.service";
-import { AlertPreference, AlertFrequency } from "../entities/alert-preference.entity";
+import {
+  AlertPreference,
+  AlertFrequency,
+} from "../entities/alert-preference.entity";
 import { AlertTriggerLog } from "../entities/alert-trigger-log.entity";
 
 const makeRepo = <T>(
@@ -30,7 +33,10 @@ describe("AlertDispatcherService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AlertDispatcherService,
-        { provide: getRepositoryToken(AlertPreference), useValue: prefRepoMock },
+        {
+          provide: getRepositoryToken(AlertPreference),
+          useValue: prefRepoMock,
+        },
         { provide: getRepositoryToken(AlertTriggerLog), useValue: logRepoMock },
       ],
     }).compile();
@@ -50,7 +56,10 @@ describe("AlertDispatcherService", () => {
   describe("dispatch - deduplication", () => {
     it("should deliver the first alert normally", async () => {
       const saveSpy = logRepo.save as jest.Mock;
-      await service.dispatch("user-1", { type: "risk.threshold.breached", asset: "BTC" });
+      await service.dispatch("user-1", {
+        type: "risk.threshold.breached",
+        asset: "BTC",
+      });
       expect(saveSpy).toHaveBeenCalledTimes(1);
     });
 
@@ -108,7 +117,9 @@ describe("AlertDispatcherService", () => {
         disabledAlertTypes: ["liquidation"],
       } as Partial<AlertPreference>);
       const saveSpy = logRepo.save as jest.Mock;
-      await service.dispatch("user-disabled", { type: "portfolio.liquidation.warning" });
+      await service.dispatch("user-disabled", {
+        type: "portfolio.liquidation.warning",
+      });
       expect(saveSpy).not.toHaveBeenCalled();
     });
 
@@ -122,7 +133,9 @@ describe("AlertDispatcherService", () => {
         disabledAlertTypes: ["liquidation"],
       } as Partial<AlertPreference>);
       const saveSpy = logRepo.save as jest.Mock;
-      await service.dispatch("user-disabled", { type: "portfolio.price.updated" });
+      await service.dispatch("user-disabled", {
+        type: "portfolio.price.updated",
+      });
       expect(saveSpy).toHaveBeenCalledTimes(1);
     });
   });
@@ -139,8 +152,14 @@ describe("AlertDispatcherService", () => {
       } as Partial<AlertPreference>);
 
       const saveSpy = logRepo.save as jest.Mock;
-      await service.dispatch("user-digest", { type: "portfolio.price.updated", asset: "BTC" });
-      await service.dispatch("user-digest", { type: "portfolio.allocation.drift", asset: "ETH" });
+      await service.dispatch("user-digest", {
+        type: "portfolio.price.updated",
+        asset: "BTC",
+      });
+      await service.dispatch("user-digest", {
+        type: "portfolio.allocation.drift",
+        asset: "ETH",
+      });
 
       // Should not deliver immediately
       expect(saveSpy).not.toHaveBeenCalled();
@@ -157,8 +176,13 @@ describe("AlertDispatcherService", () => {
         disabledAlertTypes: [],
       } as Partial<AlertPreference>);
 
-      await service.dispatch("user-digest", { type: "portfolio.price.updated", asset: "BTC" });
-      await service.dispatch("user-digest", { type: "portfolio.milestone.reached" });
+      await service.dispatch("user-digest", {
+        type: "portfolio.price.updated",
+        asset: "BTC",
+      });
+      await service.dispatch("user-digest", {
+        type: "portfolio.milestone.reached",
+      });
 
       const saveSpy = logRepo.save as jest.Mock;
       saveSpy.mockClear();
@@ -212,17 +236,47 @@ describe("AlertDispatcherService", () => {
     it("should retry up to 3 times on error and then stop", async () => {
       (logRepo.save as jest.Mock).mockRejectedValue(new Error("DB error"));
       const deliverSpy = jest.spyOn(service, "deliverToChannel");
-      await service.deliverToChannel("in-app", "user-retry", { type: "test" }, 1);
+      await service.deliverToChannel(
+        "in-app",
+        "user-retry",
+        { type: "test" },
+        1,
+      );
       expect(deliverSpy).toHaveBeenCalledTimes(3);
-      expect(deliverSpy).toHaveBeenNthCalledWith(1, "in-app", "user-retry", expect.any(Object), 1);
-      expect(deliverSpy).toHaveBeenNthCalledWith(2, "in-app", "user-retry", expect.any(Object), 2);
-      expect(deliverSpy).toHaveBeenNthCalledWith(3, "in-app", "user-retry", expect.any(Object), 3);
+      expect(deliverSpy).toHaveBeenNthCalledWith(
+        1,
+        "in-app",
+        "user-retry",
+        expect.any(Object),
+        1,
+      );
+      expect(deliverSpy).toHaveBeenNthCalledWith(
+        2,
+        "in-app",
+        "user-retry",
+        expect.any(Object),
+        2,
+      );
+      expect(deliverSpy).toHaveBeenNthCalledWith(
+        3,
+        "in-app",
+        "user-retry",
+        expect.any(Object),
+        3,
+      );
     });
 
     it("should not retry beyond attempt 3", async () => {
-      (logRepo.save as jest.Mock).mockRejectedValue(new Error("Persistent error"));
+      (logRepo.save as jest.Mock).mockRejectedValue(
+        new Error("Persistent error"),
+      );
       const deliverSpy = jest.spyOn(service, "deliverToChannel");
-      await service.deliverToChannel("in-app", "user-no-more-retry", { type: "test" }, 3);
+      await service.deliverToChannel(
+        "in-app",
+        "user-no-more-retry",
+        { type: "test" },
+        3,
+      );
       expect(deliverSpy).toHaveBeenCalledTimes(1);
     });
   });

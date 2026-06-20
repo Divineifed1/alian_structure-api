@@ -50,7 +50,9 @@ export class AlertsService {
     return this.alertRepo.save(alert);
   }
 
-  async createAllocationDriftAlert(dto: CreateAllocationDriftAlertDto): Promise<Alert> {
+  async createAllocationDriftAlert(
+    dto: CreateAllocationDriftAlertDto,
+  ): Promise<Alert> {
     const alert = this.alertRepo.create({
       userId: dto.userId,
       type: AlertType.ALLOCATION_DRIFT,
@@ -105,7 +107,10 @@ export class AlertsService {
     return this.alertRepo.save(alert);
   }
 
-  async getAlertHistory(userId: string, type?: AlertType): Promise<AlertTriggerLog[]> {
+  async getAlertHistory(
+    userId: string,
+    type?: AlertType,
+  ): Promise<AlertTriggerLog[]> {
     const where: Record<string, unknown> = { userId };
     if (type) where.type = type;
     return this.logRepo.find({
@@ -114,11 +119,19 @@ export class AlertsService {
     });
   }
 
-  async evaluatePriceAlerts(asset: string, currentPrice: number): Promise<AlertTriggerLog[]> {
-    const alerts = await this.alertRepo.find({ where: { type: AlertType.PRICE, asset, active: true } });
+  async evaluatePriceAlerts(
+    asset: string,
+    currentPrice: number,
+  ): Promise<AlertTriggerLog[]> {
+    const alerts = await this.alertRepo.find({
+      where: { type: AlertType.PRICE, asset, active: true },
+    });
     const triggered: AlertTriggerLog[] = [];
     for (const alert of alerts) {
-      if (!this.isConditionMet(alert.condition!, currentPrice, alert.threshold!)) continue;
+      if (
+        !this.isConditionMet(alert.condition!, currentPrice, alert.threshold!)
+      )
+        continue;
       if (!this.isCooldownElapsed(alert)) continue;
       alert.lastTriggeredAt = new Date();
       await this.alertRepo.save(alert);
@@ -126,7 +139,12 @@ export class AlertsService {
         alertId: alert.id,
         userId: alert.userId,
         type: AlertType.PRICE,
-        payload: { asset, currentPrice, threshold: alert.threshold, condition: alert.condition },
+        payload: {
+          asset,
+          currentPrice,
+          threshold: alert.threshold,
+          condition: alert.condition,
+        },
       });
       triggered.push(await this.logRepo.save(log));
     }
@@ -168,7 +186,10 @@ export class AlertsService {
     });
     const triggered: AlertTriggerLog[] = [];
     for (const alert of alerts) {
-      if (!this.isConditionMet(alert.condition!, portfolioValue, alert.threshold!)) continue;
+      if (
+        !this.isConditionMet(alert.condition!, portfolioValue, alert.threshold!)
+      )
+        continue;
       if (!this.isCooldownElapsed(alert)) continue;
       alert.lastTriggeredAt = new Date();
       await this.alertRepo.save(alert);
@@ -176,7 +197,11 @@ export class AlertsService {
         alertId: alert.id,
         userId: alert.userId,
         type: AlertType.MILESTONE,
-        payload: { portfolioValue, threshold: alert.threshold, condition: alert.condition },
+        payload: {
+          portfolioValue,
+          threshold: alert.threshold,
+          condition: alert.condition,
+        },
       });
       triggered.push(await this.logRepo.save(log));
     }
@@ -208,8 +233,14 @@ export class AlertsService {
     return triggered;
   }
 
-  private isConditionMet(condition: AlertCondition, current: number, threshold: number): boolean {
-    return condition === AlertCondition.ABOVE ? current > threshold : current < threshold;
+  private isConditionMet(
+    condition: AlertCondition,
+    current: number,
+    threshold: number,
+  ): boolean {
+    return condition === AlertCondition.ABOVE
+      ? current > threshold
+      : current < threshold;
   }
 
   private isCooldownElapsed(alert: Alert): boolean {
@@ -223,14 +254,19 @@ export class AlertsService {
   }
 
   async savePreference(dto: SubscribeAlertDto): Promise<AlertPreference> {
-    const existing = await this.preferenceRepo.findOne({ where: { userId: dto.userId } });
+    const existing = await this.preferenceRepo.findOne({
+      where: { userId: dto.userId },
+    });
     if (existing) {
       existing.channels = dto.channels;
-      if (dto.quietHoursStart !== undefined) existing.quietHoursStart = dto.quietHoursStart;
-      if (dto.quietHoursEnd !== undefined) existing.quietHoursEnd = dto.quietHoursEnd;
+      if (dto.quietHoursStart !== undefined)
+        existing.quietHoursStart = dto.quietHoursStart;
+      if (dto.quietHoursEnd !== undefined)
+        existing.quietHoursEnd = dto.quietHoursEnd;
       if (dto.rateLimit !== undefined) existing.rateLimit = dto.rateLimit;
       if (dto.frequency !== undefined) existing.frequency = dto.frequency;
-      if (dto.disabledAlertTypes !== undefined) existing.disabledAlertTypes = dto.disabledAlertTypes;
+      if (dto.disabledAlertTypes !== undefined)
+        existing.disabledAlertTypes = dto.disabledAlertTypes;
       return this.preferenceRepo.save(existing);
     }
     const pref = this.preferenceRepo.create({

@@ -52,12 +52,21 @@ describe("AlertEvaluationService", () => {
 
       await service.handlePriceUpdate({ asset: "BTC", price: 55000 });
 
-      expect(mockAlertsService.evaluatePriceAlerts).toHaveBeenCalledWith("BTC", 55000);
-      expect(mockDispatcher.dispatch).toHaveBeenCalledWith("u1", expect.objectContaining({
-        type: "portfolio.price.updated",
-        alertId: "a1",
-      }));
-      expect(mockEventEmitter.emit).toHaveBeenCalledWith("alert.triggered.price", triggered[0]);
+      expect(mockAlertsService.evaluatePriceAlerts).toHaveBeenCalledWith(
+        "BTC",
+        55000,
+      );
+      expect(mockDispatcher.dispatch).toHaveBeenCalledWith(
+        "u1",
+        expect.objectContaining({
+          type: "portfolio.price.updated",
+          alertId: "a1",
+        }),
+      );
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        "alert.triggered.price",
+        triggered[0],
+      );
     });
 
     it("does not dispatch when no alerts are triggered", async () => {
@@ -80,20 +89,24 @@ describe("AlertEvaluationService", () => {
           payload: { asset: "ETH", deviation: 15, threshold: 10 },
         },
       ];
-      mockAlertsService.evaluateAllocationDriftAlerts.mockResolvedValue(triggered);
+      mockAlertsService.evaluateAllocationDriftAlerts.mockResolvedValue(
+        triggered,
+      );
 
       await service.handleAllocationUpdate({
         userId: "u1",
         deviations: { ETH: 15 },
       });
 
-      expect(mockAlertsService.evaluateAllocationDriftAlerts).toHaveBeenCalledWith(
+      expect(
+        mockAlertsService.evaluateAllocationDriftAlerts,
+      ).toHaveBeenCalledWith("u1", { ETH: 15 });
+      expect(mockDispatcher.dispatch).toHaveBeenCalledWith(
         "u1",
-        { ETH: 15 },
+        expect.objectContaining({
+          type: "portfolio.allocation.drift",
+        }),
       );
-      expect(mockDispatcher.dispatch).toHaveBeenCalledWith("u1", expect.objectContaining({
-        type: "portfolio.allocation.drift",
-      }));
     });
   });
 
@@ -115,10 +128,16 @@ describe("AlertEvaluationService", () => {
         portfolioValue: 105000,
       });
 
-      expect(mockAlertsService.evaluateMilestoneAlerts).toHaveBeenCalledWith("u1", 105000);
-      expect(mockDispatcher.dispatch).toHaveBeenCalledWith("u1", expect.objectContaining({
-        type: "portfolio.milestone.reached",
-      }));
+      expect(mockAlertsService.evaluateMilestoneAlerts).toHaveBeenCalledWith(
+        "u1",
+        105000,
+      );
+      expect(mockDispatcher.dispatch).toHaveBeenCalledWith(
+        "u1",
+        expect.objectContaining({
+          type: "portfolio.milestone.reached",
+        }),
+      );
     });
   });
 
@@ -140,10 +159,16 @@ describe("AlertEvaluationService", () => {
         performancePct: -8,
       });
 
-      expect(mockAlertsService.evaluatePerformanceAlerts).toHaveBeenCalledWith("u1", -8);
-      expect(mockDispatcher.dispatch).toHaveBeenCalledWith("u1", expect.objectContaining({
-        type: "portfolio.performance.significant",
-      }));
+      expect(mockAlertsService.evaluatePerformanceAlerts).toHaveBeenCalledWith(
+        "u1",
+        -8,
+      );
+      expect(mockDispatcher.dispatch).toHaveBeenCalledWith(
+        "u1",
+        expect.objectContaining({
+          type: "portfolio.performance.significant",
+        }),
+      );
     });
 
     it("does not dispatch when performance is within threshold", async () => {

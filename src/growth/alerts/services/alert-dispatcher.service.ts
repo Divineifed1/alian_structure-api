@@ -1,7 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { AlertPreference, AlertFrequency } from "../entities/alert-preference.entity";
+import {
+  AlertPreference,
+  AlertFrequency,
+} from "../entities/alert-preference.entity";
 import { AlertTriggerLog } from "../entities/alert-trigger-log.entity";
 
 interface RateLimitEntry {
@@ -49,13 +52,16 @@ export class AlertDispatcherService {
     const rateLimit: number = prefs?.rateLimit ?? 10;
     const quietHoursStart: number | null = prefs?.quietHoursStart ?? null;
     const quietHoursEnd: number | null = prefs?.quietHoursEnd ?? null;
-    const frequency: AlertFrequency = prefs?.frequency ?? AlertFrequency.REALTIME;
+    const frequency: AlertFrequency =
+      prefs?.frequency ?? AlertFrequency.REALTIME;
     const disabledTypes: string[] = prefs?.disabledAlertTypes ?? [];
 
     // Check if alert type is disabled
     const alertType = (payload as Record<string, unknown>).type as string;
     if (alertType && this.isAlertTypeDisabled(alertType, disabledTypes)) {
-      this.logger.debug(`[DisabledType] Skipping ${alertType} alert for user ${userId}`);
+      this.logger.debug(
+        `[DisabledType] Skipping ${alertType} alert for user ${userId}`,
+      );
       return;
     }
 
@@ -89,7 +95,9 @@ export class AlertDispatcherService {
     // Buffer for daily digest if frequency is daily_digest
     if (frequency === AlertFrequency.DAILY_DIGEST) {
       this.bufferForDigest(userId, payload, channels);
-      this.logger.debug(`[Digest] Buffered alert for user ${userId} (daily digest)`);
+      this.logger.debug(
+        `[Digest] Buffered alert for user ${userId} (daily digest)`,
+      );
       return;
     }
 
@@ -116,7 +124,9 @@ export class AlertDispatcherService {
     }
 
     this.digestMap.delete(userId);
-    this.logger.log(`[Digest] Flushed ${entry.payloads.length} alerts for user ${userId}`);
+    this.logger.log(
+      `[Digest] Flushed ${entry.payloads.length} alerts for user ${userId}`,
+    );
   }
 
   /**
@@ -132,7 +142,11 @@ export class AlertDispatcherService {
     return this.digestMap.get(userId)?.payloads.length ?? 0;
   }
 
-  private bufferForDigest(userId: string, payload: object, channels: string[]): void {
+  private bufferForDigest(
+    userId: string,
+    payload: object,
+    channels: string[],
+  ): void {
     const existing = this.digestMap.get(userId);
     if (existing) {
       existing.payloads.push(payload);
@@ -141,10 +155,14 @@ export class AlertDispatcherService {
     }
   }
 
-  private isAlertTypeDisabled(alertType: string, disabledTypes: string[]): boolean {
+  private isAlertTypeDisabled(
+    alertType: string,
+    disabledTypes: string[],
+  ): boolean {
     // Match the full event type string against disabled type patterns
     return disabledTypes.some(
-      (disabled) => alertType.includes(disabled) || disabled.includes(alertType),
+      (disabled) =>
+        alertType.includes(disabled) || disabled.includes(alertType),
     );
   }
 
