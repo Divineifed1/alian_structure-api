@@ -23,7 +23,7 @@ import { BacktestingService } from "./services/backtesting.service";
 import { MLPredictionService } from "./services/ml-prediction.service";
 import { PortfolioOwnerGuard } from "./guards/portfolio-owner.guard";
 import { CreatePortfolioDto, UpdatePortfolioDto } from "./dto/portfolio.dto";
-import { AddAssetToPortfolioDto } from "./dto/portfolio-asset.dto";
+import { AddAssetToPortfolioDto, AddHoldingDto, UpdateHoldingDto } from "./dto/portfolio-asset.dto";
 import { ApproveOptimizationDto, CreateOptimizationDto } from "./dto/optimization.dto";
 import { ExecuteRebalancingDto, TriggerRebalancingDto } from "./dto/rebalancing.dto";
 import {
@@ -85,10 +85,44 @@ export class PortfolioController {
     return this.portfolioService.deletePortfolio(portfolioId);
   }
 
-  // Asset Management Endpoints
+  // Holding Management Endpoints
+
+  @Post("portfolios/:portfolioId/holdings")
+  @ApiOperation({ summary: "Add holding to portfolio" })
+  @UseGuards(PortfolioOwnerGuard)
+  async addHolding(
+    @Param("portfolioId") portfolioId: string,
+    @Body() dto: AddHoldingDto,
+  ) {
+    return this.portfolioService.addHolding(portfolioId, dto);
+  }
+
+  @Put("portfolios/:portfolioId/holdings/:holdingId")
+  @ApiOperation({ summary: "Update holding in portfolio" })
+  @UseGuards(PortfolioOwnerGuard)
+  async updateHolding(
+    @Param("portfolioId") portfolioId: string,
+    @Param("holdingId") holdingId: string,
+    @Body() dto: UpdateHoldingDto,
+  ) {
+    return this.portfolioService.updateHolding(portfolioId, holdingId, dto);
+  }
+
+  @Delete("portfolios/:portfolioId/holdings/:holdingId")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Remove holding from portfolio" })
+  @UseGuards(PortfolioOwnerGuard)
+  async removeHolding(
+    @Param("portfolioId") portfolioId: string,
+    @Param("holdingId") holdingId: string,
+  ) {
+    return this.portfolioService.removeHolding(portfolioId, holdingId);
+  }
+
+  // Asset Management Endpoints (Backward Compatibility)
 
   @Post("portfolios/:portfolioId/assets")
-  @ApiOperation({ summary: "Add asset to portfolio" })
+  @ApiOperation({ summary: "Add asset to portfolio (legacy)" })
   @UseGuards(PortfolioOwnerGuard)
   async addAsset(
     @Param("portfolioId") portfolioId: string,

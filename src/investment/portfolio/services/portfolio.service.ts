@@ -2,7 +2,7 @@ import { Injectable, Logger, BadRequestException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Portfolio } from "../entities/portfolio.entity";
-import { PortfolioAsset } from "../entities/portfolio-asset.entity";
+import { PortfolioAsset, Chain, AssetType } from "../entities/portfolio-asset.entity";
 import {
   OptimizationHistory,
   OptimizationMethod,
@@ -11,6 +11,7 @@ import {
 import { RiskProfile } from "../entities/risk-profile.entity";
 import { CreatePortfolioDto, UpdatePortfolioDto } from "../dto/portfolio.dto";
 import { CreateOptimizationDto } from "../dto/optimization.dto";
+import { AddHoldingDto, UpdateHoldingDto } from "../dto/portfolio-asset.dto";
 import { PortfolioStatus } from "../entities/portfolio.entity";
 import { ModernPortfolioTheory } from "../algorithms/modern-portfolio-theory";
 import { BlackLittermanModel } from "../algorithms/black-litterman";
@@ -93,7 +94,116 @@ export class PortfolioService {
   }
 
   /**
-   * Add asset to portfolio
+   * Add holding to portfolio
+   */
+  async addHolding(
+    portfolioId: string,
+    dto: AddHoldingDto,
+  ): Promise<PortfolioAsset> {
+    await this.getPortfolio(portfolioId);
+
+    // Check if holding already exists
+    const existing = await this.portfolioAssetRepository.findOne({
+      where: { portfolioId, ticker: dto.ticker, chain: dto.chain },
+    });
+
+    if (existing) {
+      throw new BadRequestException("Holding with same ticker and chain already exists");
+    }
+
+    const holding = this.portfolioAssetRepository.create({
+      portfolioId,
+      ticker: dto.ticker,
+      name: dto.name,
+      chain: dto.chain,
+      type: dto.type || AssetType.CRYPTOCURRENCY,
+      quantity: dto.quantity,
+      currentPrice: dto.currentPrice || 0,
+      value: dto.quantity * (dto.currentPrice || 0),
+      costBasis: dto.costBasis,
+      costBasisPerShare: dto.quantity > 0 ? dto.costBasis / dto.quantity : 0,
+    });
+
+    // Calculate unrealized gain
+    if (holding.currentPrice && holding.costBasisPerShare) {
+      holding.unrealizedGain = (holding.currentPrice - holding.costBasisPerShare) * holding.quantity;
+    }
+
+    const saved = await this.portfolioAssetRepository.save(holding);
+
+    // Update portfolio metrics
+    await this.updatePortfolioMetrics(portfolioId);
+
+    return saved;
+  }
+
+  /**
+   * Update holding
+   */
+  async updateHolding(
+    portfolioId: string,
+    holdingId: string,
+    dto: UpdateHoldingDto,
+  ): Promise<PortfolioAsset> {
+    const holding = await this.portfolioAssetRepository.findOne({
+      where: { id: holdingId, portfolioId },
+    });
+
+    if (!holding) {
+      throw new BadRequestException("Holding not found");
+    }
+
+    // Update fields
+    if (dto.quantity !== undefined) {
+      holding.quantity = dto.quantity;
+    }
+    if (dto.currentPrice !== undefined) {
+      holding.currentPrice = dto.currentPrice;
+    }
+    if (dto.costBasis !== undefined) {
+      holding.costBasis = dto.costBasis;
+      holding.costBasisPerShare = holding.quantity > 0 ? dto.costBasis / holding.quantity : 0;
+    }
+
+    // Recalculate value
+    holding.value = holding.quantity * (holding.currentPrice || 0);
+
+    // Recalculate unrealized gain
+    if (holding.currentPrice && holding.costBasisPerShare) {
+      holding.unrealizedGain = (holding.currentPrice - holding.costBasisPerShare) * holding.quantity;
+    }
+
+    const updated = await this.portfolioAssetRepository.save(holding);
+
+    // Update portfolio metrics
+    await this.updatePortfolioMetrics(portfolioId);
+
+    return updated;
+  }
+
+  /**
+   * Remove holding from portfolio
+   */
+  async removeHolding(
+    portfolioId: string,
+    holdingId: string,
+  ): Promise<void> {
+    const holding = await this.portfolioAssetRepository.findOne({
+      where: { id: holdingId, portfolioId },
+    });
+
+    if (!holding) {
+      throw new BadRequestException("Holding not found");
+    }
+
+    await this.portfolioAssetRepository.remove(holding);
+
+    // Update portfolio metrics
+    await this.updatePortfolioMetrics(portfolioId);
+  }
+
+  /**
+   * Add asset to portfolio (keeping for backward compatibility)
    */
   async addAsset(
     portfolioId: string,
@@ -103,37 +213,14 @@ export class PortfolioService {
     currentPrice: number = 0,
     costBasis: number = 0,
   ): Promise<PortfolioAsset> {
-    const portfolio = await this.getPortfolio(portfolioId);
-
-    // Check if asset already exists
-    let asset = await this.portfolioAssetRepository.findOne({
-      where: { portfolioId, ticker },
+    return this.addHolding(portfolioId, {
+      ticker,
+      name,
+      chain: Chain.OTHER,
+      quantity,
+      currentPrice,
+      costBasis,
     });
-
-    if (!asset) {
-      asset = this.portfolioAssetRepository.create({
-        portfolioId,
-        ticker,
-        name,
-        quantity: 0,
-        value: 0,
-        allocationPercentage: 0,
-        costBasis,
-        costBasisPerShare: currentPrice,
-      });
-    }
-
-    // Update asset
-    asset.quantity = quantity;
-    asset.currentPrice = currentPrice;
-    asset.value = quantity * currentPrice;
-
-    asset = await this.portfolioAssetRepository.save(asset);
-
-    // Update portfolio allocation
-    await this.updatePortfolioAllocation(portfolioId);
-
-    return asset;
   }
 
   /**
@@ -155,18 +242,23 @@ export class PortfolioService {
     asset.value = asset.quantity * currentPrice;
     asset.lastPriceUpdate = new Date();
 
+    // Recalculate unrealized gain
+    if (asset.costBasisPerShare) {
+      asset.unrealizedGain = (asset.currentPrice - asset.costBasisPerShare) * asset.quantity;
+    }
+
     const updated = await this.portfolioAssetRepository.save(asset);
 
-    // Recalculate allocation
-    await this.updatePortfolioAllocation(asset.portfolioId);
+    // Update portfolio metrics
+    await this.updatePortfolioMetrics(asset.portfolioId);
 
     return updated;
   }
 
   /**
-   * Update portfolio allocation percentages
+   * Update portfolio metrics
    */
-  async updatePortfolioAllocation(portfolioId: string): Promise<void> {
+  async updatePortfolioMetrics(portfolioId: string): Promise<void> {
     const portfolio = await this.getPortfolio(portfolioId);
     const assets = await this.portfolioAssetRepository.find({
       where: { portfolioId },
@@ -184,7 +276,7 @@ export class PortfolioService {
     for (const asset of assets) {
       const percentage = totalValue > 0 ? (asset.value / totalValue) * 100 : 0;
       asset.allocationPercentage = percentage;
-      allocation[asset.ticker] = percentage;
+      allocation[`${asset.ticker}-${asset.chain}`] = percentage;
     }
 
     portfolio.currentAllocation = allocation;
@@ -205,6 +297,13 @@ export class PortfolioService {
         `Failed to record performance snapshot for ${portfolioId}: ${error.message}`,
       );
     }
+  }
+
+  /**
+   * Update portfolio allocation percentages (keeping for backward compatibility)
+   */
+  async updatePortfolioAllocation(portfolioId: string): Promise<void> {
+    await this.updatePortfolioMetrics(portfolioId);
   }
 
   /**
