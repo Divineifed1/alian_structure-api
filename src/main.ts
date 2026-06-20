@@ -10,6 +10,7 @@ import { createCorsConfig } from "./config/cors.config";
 import { createHelmetConfig } from "./config/helmet.config";
 import { setupSwagger } from "./config/swagger.config";
 import * as Sentry from "@sentry/node";
+import { expressIntegration } from "@sentry/node";
 import { initSentry } from "./config/sentry";
 import { sentryBreadcrumbMiddleware } from "./common/middleware/sentry.middleware";
 
@@ -36,8 +37,7 @@ async function bootstrap() {
   }
 
   // Initialize Sentry request and performance monitoring middleware
-  app.use(Sentry.Handlers.requestHandler());
-  app.use(Sentry.Handlers.tracingHandler());
+  // For Sentry v8+, expressIntegration automatically handles middleware when added to integrations
   app.use(sentryBreadcrumbMiddleware);
 
   // Security Headers - Helmet

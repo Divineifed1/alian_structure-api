@@ -54,7 +54,7 @@ Technical highlights
 Quick start (developer)
 -----------------------
 1. Clone the repo
-   git clone https://github.com/StellAIverse/stellAIverse-backend.git
+   git clone https://github.com/StellAIverse/alian-structure-api.git
 
 2. Install dependencies
    npm install

@@ -28,13 +28,17 @@ import { PortfolioModule } from "./investment/portfolio/portfolio.module";
 import { RiskManagementModule } from "./investment/risk-management/risk-management.module";
 
 // Modules – defi
-import { DeFiModule } from "./defi/defi.module";
+import { DeFiModule } from "./defi/defi/defi.module";
 
 // Modules – growth
 import { AlertsModule } from "./growth/alerts/alerts.module";
 
 // Modules – health
 import { HealthModule } from "./health/health.module";
+// Modules – observability
+import { ObservabilityModule } from "./observability/observability.module";
+// Modules – profiling
+import { ProfilingModule } from "./profiling/profiling.module";
 
 // Auth entities
 import { User } from "./core/user/entities/user.entity";
@@ -60,11 +64,11 @@ import { PerformanceMetric } from "./investment/portfolio/entities/performance-m
 import { BacktestResult } from "./investment/portfolio/entities/backtest-result.entity";
 
 // DeFi entities
-import { DeFiPosition } from "./defi/entities/defi-position.entity";
-import { DeFiYieldRecord } from "./defi/entities/defi-yield-record.entity";
-import { DeFiTransaction } from "./defi/entities/defi-transaction.entity";
-import { DeFiYieldStrategy } from "./defi/entities/defi-yield-strategy.entity";
-import { DeFiRiskAssessment } from "./defi/entities/defi-risk-assessment.entity";
+import { DeFiPosition } from "./defi/defi/entities/defi-position.entity";
+import { DeFiYieldRecord } from "./defi/defi/entities/defi-yield-record.entity";
+import { DeFiTransaction } from "./defi/defi/entities/defi-transaction.entity";
+import { DeFiYieldStrategy } from "./defi/defi/entities/defi-yield-strategy.entity";
+import { DeFiRiskAssessment } from "./defi/defi/entities/defi-risk-assessment.entity";
 
 // Alerts entities
 import { Alert } from "./growth/alerts/entities/alert.entity";
@@ -80,6 +84,7 @@ import { StrategyAuthGuard } from "./core/auth/guards/strategy-auth.guard";
 import { GlobalExceptionFilter } from "./common/filters/global-exception.filter";
 import { SubmissionVerifierService } from "./blockchain/oracle/submission-verifier.service";
 import { LoggingMiddleware } from "./common/middleware/logging.middleware";
+import { ProfilingMiddleware } from "./profiling/profiling.middleware";
 
 @Module({
   imports: [
@@ -181,6 +186,8 @@ import { LoggingMiddleware } from "./common/middleware/logging.middleware";
     DeFiModule,
     AlertsModule,
     HealthModule,
+    ObservabilityModule,
+    ProfilingModule,
   ],
 
   controllers: [AppController],
@@ -214,7 +221,7 @@ export class AppModule implements NestModule, OnModuleInit {
   constructor(private readonly verifier: SubmissionVerifierService) {}
 
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(LoggingMiddleware).forRoutes('*');
+    consumer.apply(LoggingMiddleware, ProfilingMiddleware).forRoutes('*');
   }
 
   onModuleInit() {
