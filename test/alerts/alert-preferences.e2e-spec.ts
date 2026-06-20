@@ -1,0 +1,220 @@
+import { Test, TestingModule } from "@nestjs/testing";
+import { INestApplication, ValidationPipe } from "@nestjs/common";
+import * as request from "supertest";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { EventEmitterModule } from "@nestjs/event-emitter";
+import { Alert, AlertType, AlertCondition } from "../../src/growth/alerts/entities/alert.entity";
+import { AlertTriggerLog } from "../../src/growth/alerts/entities/alert-trigger-log.entity";
+import { AlertPreference, AlertFrequency } from "../../src/growth/alerts/entities/alert-preference.entity";
+import { AlertsModule } from "../../src/growth/alerts/alerts.module";
+
+describe("Alert Preferences (e2e)", () => {
+  let app: INestApplication;
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [
+        TypeOrmModule.forRoot({
+          type: "sqlite",
+          database: ":memory:",
+          entities: [Alert, AlertTriggerLog, AlertPreference],
+          synchronize: true,
+        }),
+        EventEmitterModule.forRoot(),
+        AlertsModule,
+      ],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  const testUserId = "e2e-user-001";
+
+  describe("POST /api/alerts/subscribe", () => {
+    it("should create alert preferences with frequency and disabledAlertTypes", async () => {
+      const res = await request(app.getHttpServer())
+        .post("/api/alerts/subscribe")
+        .send({
+          userId: testUserId,
+          channels: ["in-app", "email", "push"],
+          quietHoursStart: 22,
+          quietHoursEnd: 8,
+          rateLimit: 15,
+          frequency: AlertFrequency.DAILY_DIGEST,
+          disabledAlertTypes: ["liquidation"],
+        })
+        .expect(201);
+
+      expect(res.body.userId).toBe(testUserId);
+      expect(res.body.channels).toContain("push");
+      expect(res.body.frequency).toBe(AlertFrequency.DAILY_DIGEST);
+      expect(res.body.disabledAlertTypes).toContain("liquidation");
+    });
+
+    it("should update existing preferences", async () => {
+      const res = await request(app.getHttpServer())
+        .post("/api/alerts/subscribe")
+        .send({
+          userId: testUserId,
+          channels: ["websocket"],
+          frequency: AlertFrequency.REALTIME,
+        })
+        .expect(201);
+
+      expect(res.body.channels).toEqual(["websocket"]);
+      expect(res.body.frequency).toBe(AlertFrequency.REALTIME);
+    });
+  });
+
+  describe("GET /api/alerts/preferences/:userId", () => {
+    it("should return saved preferences", async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/alerts/preferences/${testUserId}`)
+        .expect(200);
+
+      expect(res.body.userId).toBe(testUserId);
+    });
+  });
+
+  describe("POST /api/alerts/price", () => {
+    it("should create a price alert", async () => {
+      const res = await request(app.getHttpServer())
+        .post("/api/alerts/price")
+        .send({
+          userId: testUserId,
+          asset: "BTC",
+          condition: AlertCondition.ABOVE,
+          threshold: 50000,
+        })
+        .expect(201);
+
+      expect(res.body.type).toBe(AlertType.PRICE);
+      expect(res.body.asset).toBe("BTC");
+    });
+  });
+
+  describe("POST /api/alerts/allocation-drift", () => {
+    it("should create an allocation drift alert", async () => {
+      const res = await request(app.getHttpServer())
+        .post("/api/alerts/allocation-drift")
+        .send({
+          userId: testUserId,
+          asset: "ETH",
+          threshold: 10,
+        })
+        .expect(201);
+
+      expect(res.body.type).toBe(AlertType.ALLOCATION_DRIFT);
+    });
+  });
+
+  describe("POST /api/alerts/milestone", () => {
+    it("should create a milestone alert", async () => {
+      const res = await request(app.getHttpServer())
+        .post("/api/alerts/milestone")
+        .send({
+          userId: testUserId,
+          threshold: 100000,
+          condition: AlertCondition.ABOVE,
+        })
+        .expect(201);
+
+      expect(res.body.type).toBe(AlertType.MILESTONE);
+    });
+  });
+
+  describe("POST /api/alerts/performance", () => {
+    it("should create a performance alert", async () => {
+      const res = await request(app.getHttpServer())
+        .post("/api/alerts/performance")
+        .send({
+          userId: testUserId,
+          threshold: 5,
+          condition: AlertCondition.BELOW,
+        })
+        .expect(201);
+
+      expect(res.body.type).toBe(AlertType.PERFORMANCE);
+    });
+  });
+
+  describe("GET /api/alerts", () => {
+    it("should return all active alerts for user", async () => {
+      const res = await request(app.getHttpServer())
+        .get("/api/alerts")
+        .query({ userId: testUserId })
+        .expect(200);
+
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBeGreaterThanOrEqual(3);
+    });
+  });
+
+  describe("GET /api/alerts/history", () => {
+    it("should return alert history", async () => {
+      const res = await request(app.getHttpServer())
+        .get("/api/alerts/history")
+        .query({ userId: testUserId })
+        .expect(200);
+
+      expect(Array.isArray(res.body)).toBe(true);
+    });
+  });
+
+  describe("PATCH /api/alerts/:alertId/toggle", () => {
+    it("should disable an alert", async () => {
+      // First get alerts
+      const alerts = await request(app.getHttpServer())
+        .get("/api/alerts")
+        .query({ userId: testUserId });
+
+      if (alerts.body.length > 0) {
+        const alertId = alerts.body[0].id;
+        const res = await request(app.getHttpServer())
+          .patch(`/api/alerts/${alertId}/toggle`)
+          .send({ active: false })
+          .expect(200);
+
+        expect(res.body.active).toBe(false);
+      }
+    });
+  });
+
+  describe("DELETE /api/alerts/:alertId", () => {
+    it("should deactivate an alert", async () => {
+      const alerts = await request(app.getHttpServer())
+        .get("/api/alerts")
+        .query({ userId: testUserId });
+
+      if (alerts.body.length > 0) {
+        const alertId = alerts.body[alerts.body.length - 1].id;
+        await request(app.getHttpServer())
+          .delete(`/api/alerts/${alertId}`)
+          .expect(200);
+      }
+    });
+  });
+
+  describe("DELETE /api/alerts/unsubscribe/:userId", () => {
+    it("should remove alert preferences", async () => {
+      await request(app.getHttpServer())
+        .delete(`/api/alerts/unsubscribe/${testUserId}`)
+        .expect(200);
+
+      // Verify removed
+      await request(app.getHttpServer())
+        .get(`/api/alerts/preferences/${testUserId}`)
+        .expect(200)
+        .then((res) => {
+          // After removal, findOne returns null/empty
+          expect(res.body).toBeFalsy();
+        });
+    });
+  });
+});
