@@ -8,12 +8,41 @@ import {
 import { AppService } from "./app.service";
 import { RateLimit } from "./common/decorators/rate-limit.decorator";
 import { JwtAuthGuard } from "./core/auth/jwt.guard";
+import { Public } from "./common/decorators/public.decorator";
 
 @ApiTags("Info")
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
+  @Public()
+  @Get("health")
+  @RateLimit({ level: "free", limit: 2, windowMs: 60000 }) // Max 2 requests per minute for health
+  @ApiOperation({
+    summary: "Health Check",
+    description: "Check if the API is running and healthy",
+    operationId: "getHealth",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Service is healthy",
+    schema: {
+      type: "object",
+      properties: {
+        status: { type: "string", example: "OK" },
+        timestamp: { type: "string", example: "2024-02-25T05:30:00.000Z" },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 429,
+    description: "Too many requests",
+  })
+  getHealth(): { status: string; timestamp: string } {
+    return this.appService.getHealth();
+  }
+
+  @Public()
   @Get("info")
   @RateLimit({ level: "standard" }) // Default standard level
   @ApiOperation({
