@@ -1,4 +1,4 @@
-import { Module, OnModuleInit } from "@nestjs/common";
+import { Module, NestModule, MiddlewareConsumer, OnModuleInit } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { join } from "path";
@@ -79,6 +79,7 @@ import { KycGuard } from "./common/guard/kyc.guard";
 import { StrategyAuthGuard } from "./core/auth/guards/strategy-auth.guard";
 import { GlobalExceptionFilter } from "./common/filters/global-exception.filter";
 import { SubmissionVerifierService } from "./blockchain/oracle/submission-verifier.service";
+import { LoggingMiddleware } from "./common/middleware/logging.middleware";
 
 @Module({
   imports: [
@@ -209,8 +210,12 @@ import { SubmissionVerifierService } from "./blockchain/oracle/submission-verifi
     SubmissionVerifierService,
   ],
 })
-export class AppModule implements OnModuleInit {
+export class AppModule implements NestModule, OnModuleInit {
   constructor(private readonly verifier: SubmissionVerifierService) {}
+
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggingMiddleware).forRoutes('*');
+  }
 
   onModuleInit() {
     this.verifier.start();
