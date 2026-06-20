@@ -16,7 +16,6 @@ export class EmailVerification {
   email: string;
 
   @Column({ length: 64, unique: true })
-  @Index()
   token: string;
 
   @Column()

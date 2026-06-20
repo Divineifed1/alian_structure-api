@@ -24,7 +24,8 @@ import { RecoveryService } from "./recovery.service";
 import { SessionRecoveryService } from "./session-recovery.service";
 import { DelegationService, DelegationPermission } from "./delegation.service";
 import { JwtAuthGuard } from "./jwt.guard";
-import { AuthService } from "./auth.service";
+import { EnhancedAuthService } from "./enhanced-auth.service";
+import { TokenBlacklistService } from "./token-blacklist.service";
 import { RegisterDto, LoginDto } from "./dto/auth.dto";
 import { LinkEmailDto } from "./dto/link-email.dto";
 import { VerifyEmailDto } from "./dto/verify-email.dto";
@@ -36,6 +37,7 @@ import { Throttle } from "@nestjs/throttler";
 import { SensitiveRateLimit } from "../../common/decorators/rate-limit.decorator";
 import { Roles, Role } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guard/roles.guard";
+import { Public } from "../../common/decorators/public.decorator";
 
 export class RequestChallengeDto {
   @ApiProperty({
@@ -50,7 +52,7 @@ export class VerifySignatureDto {
   @ApiProperty({
     description: "Challenge message to sign",
     example:
-      "Sign this message to authenticate with StellAIverse at 2024-02-25T05:30:00.000Z",
+      "Sign this message to authenticate with alian-structure at 2024-02-25T05:30:00.000Z",
   })
   message: string;
 
@@ -69,7 +71,8 @@ export class VerifySignatureDto {
 @Controller("auth")
 export class AuthController {
   constructor(
-    private readonly authService: AuthService,
+    private readonly enhancedAuthService: EnhancedAuthService,
+    private readonly tokenBlacklistService: TokenBlacklistService,
     private readonly challengeService: ChallengeService,
     private readonly walletAuthService: WalletAuthService,
     private readonly emailLinkingService: EmailLinkingService,
@@ -95,7 +98,7 @@ export class AuthController {
         message: {
           type: "string",
           example:
-            "Sign this message to authenticate with StellAIverse at 2024-02-25T05:30:00.000Z",
+            "Sign this message to authenticate with alian-structure at 2024-02-25T05:30:00.000Z",
         },
         address: {
           type: "string",
@@ -387,16 +390,17 @@ export class AuthController {
 
   // Traditional Auth Endpoints
 
+  @Public()
   @Post("register")
   @ApiOperation({ summary: "Register with email and password" })
-  async register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+  async register(@Body() dto: RegisterDto, @Request() req) {
+    return this.enhancedAuthService.register(dto, req.ip, req.headers["user-agent"]);
   }
 
   @Post("login")
   @ApiOperation({ summary: "Login with email and password" })
-  async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(@Body() dto: LoginDto, @Request() req) {
+    return this.enhancedAuthService.login(dto, req.ip, req.headers["user-agent"]);
   }
 
   @Post("logout")
@@ -404,10 +408,13 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Logout and invalidate current token" })
   async logout(@Request() req) {
-    const { jti, exp } = req.user;
+    const { jti, exp, sub: userId } = req.user;
+    // Revoke access token jti if it exists
     if (jti && exp) {
-      this.authService.logout(jti, exp);
+      this.tokenBlacklistService.revoke(jti, exp * 1000); // exp is in seconds, convert to ms
     }
+    // Revoke all refresh tokens for this user
+    await this.enhancedAuthService.revokeAllRefreshTokens(userId);
     return { message: "Logged out successfully" };
   }
 
@@ -416,6 +423,19 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Check authentication status" })
   async getStatus(@Request() req) {
-    return this.authService.getAuthStatus(req.user);
+    const user = await this.enhancedAuthService.validateUser(req.user.sub);
+    if (!user) {
+      return { isAuthenticated: false, user: null };
+    }
+    return {
+      isAuthenticated: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        referralCode: user.referralCode,
+      },
+    };
   }
 }

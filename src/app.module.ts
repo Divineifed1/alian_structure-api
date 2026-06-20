@@ -1,4 +1,4 @@
-import { Module, NestModule, MiddlewareConsumer, OnModuleInit } from "@nestjs/common";
+import { Module, NestModule, MiddlewareConsumer, OnModuleInit, Inject } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { join } from "path";
@@ -53,10 +53,12 @@ import { SubmissionNonce } from "./blockchain/oracle/entities/submission-nonce.e
 import { AgentEvent } from "./infrastructure/audit/entities/agent-event.entity";
 import { ComputeResult } from "./infrastructure/audit/entities/compute-result.entity";
 import { ProvenanceRecord } from "./infrastructure/audit/entities/provenance-record.entity";
+import { OracleSubmission } from "./infrastructure/audit/entities/oracle-submission.entity";
 
 // Portfolio entities
 import { Portfolio } from "./investment/portfolio/entities/portfolio.entity";
 import { PortfolioAsset } from "./investment/portfolio/entities/portfolio-asset.entity";
+import { Transaction } from "./investment/portfolio/entities/transaction.entity";
 import { RiskProfile } from "./investment/portfolio/entities/risk-profile.entity";
 import { OptimizationHistory } from "./investment/portfolio/entities/optimization-history.entity";
 import { RebalancingEvent } from "./investment/portfolio/entities/rebalancing-event.entity";
@@ -90,16 +92,13 @@ import { ProfilingMiddleware } from "./profiling/profiling.middleware";
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: process.env.NODE_ENV === 'production' 
-        ? join(__dirname, '..', '.env')
-        : '.env',
+      envFilePath: join(__dirname, '..', '.env'),
       validate: async (config: Record<string, unknown>) => {
         const validatedConfig = plainToInstance(EnvironmentVariables, config, {
           enableImplicitConversion: true,
         });
         const errors = await validate(validatedConfig, {
           whitelist: true,
-          forbidNonWhitelisted: true,
         });
         if (errors.length > 0) {
           throw new Error(
@@ -123,11 +122,16 @@ import { ProfilingMiddleware } from "./profiling/profiling.middleware";
           throw new Error("DATABASE_URL must be set in production");
         }
 
+        // Use DATABASE_URL from environment if available, otherwise fall back to individual settings
+        const databaseUrl = configService.get<string>("DATABASE_URL");
         return {
           type: "postgres",
-          url:
-            configService.get("DATABASE_URL") ||
-            "postgresql://stellaiverse:password@localhost:5432/stellaiverse",
+          url: databaseUrl, // TypeORM can directly parse the DATABASE_URL string
+          host: "localhost",
+          port: 5432,
+          username: "postgres",
+          password: "BNG482@AA",
+          database: "swaptrade",
           entities: [
             User,
             EmailVerification,
@@ -137,8 +141,10 @@ import { ProfilingMiddleware } from "./profiling/profiling.middleware";
             AgentEvent,
             ComputeResult,
             ProvenanceRecord,
+            OracleSubmission,
             Portfolio,
             PortfolioAsset,
+            Transaction,
             RiskProfile,
             OptimizationHistory,
             RebalancingEvent,
@@ -153,14 +159,15 @@ import { ProfilingMiddleware } from "./profiling/profiling.middleware";
             AlertTriggerLog,
             AlertPreference,
           ],
-          synchronize: !isProduction,
-          logging: isProduction ? ["error"] : ["error", "warn", "schema"],
+          synchronize: true,
+          logging: true,
           ssl: isProduction ? { rejectUnauthorized: false } : false,
           extra: {
             max: 20,
             idleTimeoutMillis: 30000,
-            connectionTimeoutMillis: 2000,
+            connectionTimeoutMillis: 5000,
           },
+          migrationsRun: false,
         };
       },
     }),
@@ -214,14 +221,15 @@ import { ProfilingMiddleware } from "./profiling/profiling.middleware";
       provide: APP_GUARD,
       useClass: KycGuard,
     },
-    SubmissionVerifierService,
   ],
 })
 export class AppModule implements NestModule, OnModuleInit {
-  constructor(private readonly verifier: SubmissionVerifierService) {}
+  constructor(@Inject(SubmissionVerifierService) private readonly verifier: SubmissionVerifierService) {}
 
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(LoggingMiddleware, ProfilingMiddleware).forRoutes('*');
+    // Create LoggingMiddleware instance manually to fix dependency injection issue
+    const loggingMiddleware = new LoggingMiddleware();
+    consumer.apply((req, res, next) => loggingMiddleware.use(req, res, next), ProfilingMiddleware).forRoutes('*');
   }
 
   onModuleInit() {

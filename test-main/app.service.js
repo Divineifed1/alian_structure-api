@@ -17,9 +17,9 @@ let AppService = class AppService {
     }
     getInfo() {
         return {
-            name: "StellAIverse Backend",
+            name: "alian-structure Backend",
             version: "0.1.0",
-            description: "Off-chain services + API layer for StellAIverse agents",
+            description: "Off-chain services + API layer for alian-structure agents",
             modules: [
                 "AI Compute Bridge",
                 "Real-time Dashboard (WebSocket)",

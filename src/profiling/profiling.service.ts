@@ -31,7 +31,7 @@ interface HotFunction {
 @Injectable()
 export class ProfilingService {
   private readonly logger = new Logger(ProfilingService.name);
-  private readonly profilesDir = path.join(os.tmpdir(), "stellaiverse-profiles");
+  private readonly profilesDir = path.join(os.tmpdir(), "alian-structure-profiles");
   private activeProfiles: Map<string, ProfileMetadata> = new Map();
   private cpuProfiler: any = null;
   private performanceObserver: PerformanceObserver | null = null;

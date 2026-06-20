@@ -51,27 +51,26 @@ export class SubmitterService {
     @InjectRepository(SignedPayload)
     private payloadRepository: Repository<SignedPayload>,
   ) {
-    // Initialize provider
+    // Initialize provider only if all required configuration is present
     const rpcUrl = this.configService.get<string>("ETH_RPC_URL");
-    if (!rpcUrl) {
-      throw new Error("ETH_RPC_URL not configured");
-    }
-    this.provider = new JsonRpcProvider(rpcUrl);
-
-    // Initialize submitter wallet
     const privateKey = this.configService.get<string>("SUBMITTER_PRIVATE_KEY");
-    if (!privateKey) {
-      throw new Error("SUBMITTER_PRIVATE_KEY not configured");
-    }
-    this.submitterWallet = new Wallet(privateKey, this.provider);
+    const contractAddress = this.configService.get<string>("ORACLE_CONTRACT_ADDRESS");
 
-    // Initialize oracle contract
-    const contractAddress = this.configService.get<string>(
-      "ORACLE_CONTRACT_ADDRESS",
-    );
-    if (!contractAddress) {
-      throw new Error("ORACLE_CONTRACT_ADDRESS not configured");
+    if (!rpcUrl || !privateKey || !contractAddress) {
+      this.logger.warn(
+        "SubmitterService is disabled: Missing required blockchain configuration. Set ETH_RPC_URL, SUBMITTER_PRIVATE_KEY, and ORACLE_CONTRACT_ADDRESS to enable on-chain submissions.",
+      );
+      // Set default values to prevent errors when service methods are called
+      this.maxRetries = 0;
+      this.initialRetryDelay = 0;
+      this.maxRetryDelay = 0;
+      this.backoffMultiplier = 0;
+      this.gasLimitMultiplier = 0;
+      return;
     }
+
+    this.provider = new JsonRpcProvider(rpcUrl);
+    this.submitterWallet = new Wallet(privateKey, this.provider);
     this.oracleContract = new Contract(
       contractAddress,
       ORACLE_CONTRACT_ABI,
@@ -166,6 +165,9 @@ export class SubmitterService {
     transactionHash: string;
     payload: SignedPayload;
   }> {
+    if (!this.provider || !this.submitterWallet || !this.oracleContract) {
+      throw new BadRequestException("SubmitterService is not configured. Blockchain features are disabled.");
+    }
     // Fetch payload from database
     const payload = await this.payloadRepository.findOne({
       where: { id: payloadId },

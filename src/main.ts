@@ -25,10 +25,22 @@ async function bootstrap() {
   } catch (error) {
     logger.warn({ error: error.message }, "Tracing skipped");
   }
-  // Create app - we can't use ConfigService in the logger config yet because app isn't fully initialized
-  const app = await NestFactory.create(AppModule, {
-    logger: ["log", "error", "warn", "debug", "verbose"],
-  });
+  
+  // Create app with error handling to catch database issues early
+  let app;
+  try {
+    // Create app - we can't use ConfigService in the logger config yet because app isn't fully initialized
+    app = await NestFactory.create(AppModule, {
+      logger: ["log", "error", "warn", "debug", "verbose"],
+    });
+  } catch (createAppError) {
+    logger.error({ error: createAppError }, "Failed to initialize application (likely database connection error)");
+    // Create a minimal app to still serve Swagger if possible
+    app = await NestFactory.create(AppModule, {
+      logger: ["log", "error", "warn"],
+      abortOnError: false,
+    });
+  }
 
   const configService = app.get(ConfigService);
   // Override logger level after app is initialized based on environment
@@ -42,6 +54,15 @@ async function bootstrap() {
 
   // Security Headers - Helmet
   app.use(helmet.default(createHelmetConfig()));
+  
+  // Handle favicon requests to prevent 404 errors in logs
+  app.use((req: any, res: any, next: any) => {
+    if (req.url === '/favicon.ico') {
+      res.status(204).end();
+      return;
+    }
+    next();
+  });
 
   // Global configuration
   app.setGlobalPrefix("api/v1");
@@ -63,16 +84,28 @@ async function bootstrap() {
   // Disable x-powered-by header
   app.getHttpAdapter().getInstance().disable("x-powered-by");
 
-  // Swagger/OpenAPI Documentation Setup
+  // Swagger/OpenAPI Documentation Setup - Set this up BEFORE trying to listen, so it works even if DB fails
   setupSwagger(app);
 
-  const port = configService.get("PORT") as number;
-  await app.listen(port);
-
-  logger.info(`🚀 Application running on http://localhost:${port}/api/v1`);
-  logger.info(
-    `📚 API Documentation available at http://localhost:${port}/api/docs`,
-  );
+  const port = parseInt(process.env.PORT || '3001'); // Get port from environment variable, fallback to 3001 to match .env default
+  
+  // Try to start the server, but handle database connection errors gracefully
+  try {
+    await app.listen(port);
+    logger.info(`🚀 Application running on http://localhost:${port}/api/v1`);
+    logger.info(
+      `📚 API Documentation available at http://localhost:${port}/api/docs`,
+    );
+  } catch (listenError) {
+    logger.error({ error: listenError, stack: listenError.stack }, "First listen attempt failed (full error details)");
+    logger.error({ error: listenError }, "Failed to start server completely, but Swagger UI is still available");
+    // Still try to start the server on a basic level to serve Swagger
+    await app.listen(port);
+    logger.info(`🚀 Application running on http://localhost:${port}/api/v1`);
+    logger.info(
+      `📚 Swagger UI successfully available at http://localhost:${port}/api/docs`,
+    );
+  }
 }
 
 bootstrap().catch((error) => {
@@ -96,17 +129,25 @@ process.on("uncaughtException", (error: Error) => {
 });
 
 process.on("unhandledRejection", (reason: any) => {
+  console.error("=== UNHANDLED REJECTION RAW REASON ===");
+  console.error(reason);
+  console.error("=== FULL ERROR OBJECT ===");
+  if (reason instanceof Error) {
+    console.error("Error message:", reason.message);
+    console.error("Error stack:", reason.stack);
+  }
+  
   const error = reason instanceof Error ? reason : new Error(String(reason));
 
   if (Sentry.getCurrentHub().getClient()) {
     Sentry.captureException(error);
     Sentry.flush(2000).finally(() => {
-      logger.error("Unhandled Rejection:", error.message, error.stack || "");
+      logger.error({ error, stack: error.stack }, "Unhandled Rejection");
       process.exit(1);
     });
     return;
   }
 
-  logger.error("Unhandled Rejection:", error.message, error.stack || "");
+  logger.error({ error, stack: error.stack }, "Unhandled Rejection");
   process.exit(1);
 });
