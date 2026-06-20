@@ -37,6 +37,7 @@ import {
 import { JwtAuthGuard } from "src/core/auth/jwt.guard";
 import { User } from "src/core/user/entities/user.entity";
 import { CurrentUser } from "src/core/auth/decorators";
+import { ProtocolRegistry, ProtocolAdapterMetadata } from "./protocols/protocol-registry";
 
 @Controller("defi")
 @UseGuards(JwtAuthGuard)
@@ -46,7 +47,23 @@ export class DeFiController {
     private yieldOptimizationService: YieldOptimizationService,
     private riskAssessmentService: RiskAssessmentService,
     private transactionOptimizationService: TransactionOptimizationService,
+    private protocolRegistry: ProtocolRegistry,
   ) {}
+
+  // ==================== Protocols ====================
+
+  @Get("protocols")
+  getAvailableProtocols(): ProtocolAdapterMetadata[] {
+    return this.protocolRegistry.getAllAdapters().map((adapter) => ({
+      name: adapter.name,
+      supportedChains: adapter.supportedChains,
+      capabilities: [
+        ...(typeof adapter.borrow === "function" ? ["borrow"] : []),
+        ...(typeof adapter.stake === "function" ? ["stake"] : []),
+        ...(typeof adapter.getSwapRoute === "function" ? ["swap"] : []),
+      ],
+    }));
+  }
 
   // ==================== Portfolio Management ====================
 
