@@ -23,7 +23,7 @@ Create a `.env` file in the root directory:
 
 ```env
 # Database
-DATABASE_URL=postgresql://user:password@localhost:5432/stellaiverse
+DATABASE_URL=postgresql://user:password@localhost:5432/alian-structure
 DATABASE_SYNC=true
 DATABASE_LOGGING=true
 
@@ -80,7 +80,7 @@ MARKET_DATA_PROVIDER=alphavantage # or finnhub, iex, etc
 
 ```bash
 # Create database
-createdb stellaiverse
+createdb alian-structure
 
 # Run migrations
 npm run typeorm -- migration:run -d src/config/typeorm.config.ts
@@ -257,9 +257,9 @@ services:
   postgres:
     image: postgres:15-alpine
     environment:
-      POSTGRES_USER: stellaiverse
+      POSTGRES_USER: alian-structure
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: stellaiverse
+      POSTGRES_DB: alian-structure
     ports:
       - "5432:5432"
     volumes:
@@ -275,7 +275,7 @@ services:
   app:
     build: .
     environment:
-      DATABASE_URL: postgresql://stellaiverse:password@postgres:5432/stellaiverse
+      DATABASE_URL: postgresql://alian-structure:password@postgres:5432/alian-structure
       REDIS_HOST: redis
       NODE_ENV: production
     ports:
@@ -516,7 +516,7 @@ async function migratePortfolios(oldData: any[]) {
 
 ```bash
 # Check PostgreSQL is running
-psql -U user -d stellaiverse -c "SELECT 1;"
+psql -U user -d alian-structure -c "SELECT 1;"
 
 # Check connection string
 echo $DATABASE_URL

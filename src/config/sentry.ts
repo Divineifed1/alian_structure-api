@@ -1,4 +1,11 @@
 import * as Sentry from "@sentry/node";
+import { 
+  httpIntegration, 
+  onUncaughtExceptionIntegration, 
+  onUnhandledRejectionIntegration,
+  expressIntegration,
+  getDefaultIntegrations
+} from "@sentry/node";
 import { logger } from "./logger";
 
 const dsn = process.env.SENTRY_DSN;
@@ -12,23 +19,22 @@ export const initSentry = () => {
     return;
   }
 
-  const integrations = [
-    new Sentry.Integrations.Http({ tracing: true }),
-    new Sentry.Integrations.OnUncaughtException({
-      onFatalError: (error) => {
-        logger.error({ error }, "Sentry uncaught exception");
-        process.exit(1);
-      },
-    }),
-    new Sentry.Integrations.OnUnhandledRejection({ mode: "warn" }),
-  ];
-
   Sentry.init({
     dsn,
     environment,
     release,
     tracesSampleRate: Number.isFinite(tracesSampleRate) ? tracesSampleRate : 0.1,
-    integrations,
+    integrations: [
+      ...getDefaultIntegrations({}),
+      expressIntegration(),
+      onUncaughtExceptionIntegration({
+        onFatalError: (error) => {
+          logger.error({ error }, "Sentry uncaught exception");
+          process.exit(1);
+        },
+      }),
+      onUnhandledRejectionIntegration({ mode: "warn" }),
+    ],
     attachStacktrace: true,
     normalizeDepth: 5,
     beforeSend(event) {

@@ -32,15 +32,12 @@ export class User {
   id: string;
 
   @Column({ unique: true, nullable: true })
-  @Index()
   username: string | null;
 
   @Column({ unique: true, nullable: false })
-  @Index()
   walletAddress: string;
 
   @Column({ unique: true, nullable: true })
-  @Index()
   email: string | null;
 
   @Column({ nullable: true })
@@ -86,7 +83,6 @@ export class User {
   wallets: Wallet[];
 
   @Column({ unique: true, nullable: true })
-  @Index()
   referralCode: string | null;
 
   @Column({ nullable: true })

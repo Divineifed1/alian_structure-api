@@ -49,7 +49,6 @@ export class ComputeResult {
    * Hash of the result for integrity verification
    */
   @Column({ type: "varchar", length: 66 })
-  @Index()
   resultHash: string;
 
   /**

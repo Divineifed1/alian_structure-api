@@ -19,7 +19,7 @@ export enum RiskLevel {
 
 @Entity("defi_risk_assessments")
 @Index(["position_id", "created_at"])
-@Index(["risk_level", "created_at"])
+@Index(["overall_risk_level", "created_at"])
 export class DeFiRiskAssessment {
   @PrimaryGeneratedColumn("uuid")
   id: string;

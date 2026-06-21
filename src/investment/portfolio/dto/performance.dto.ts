@@ -3,10 +3,25 @@ import {
   IsNumber,
   IsDateString,
   IsArray,
+  IsEnum,
   Min,
   Max,
 } from "class-validator";
 import { Type } from "class-transformer";
+
+export enum TimeRange {
+  ONE_MONTH = "1m",
+  THREE_MONTHS = "3m",
+  SIX_MONTHS = "6m",
+  ONE_YEAR = "1y",
+  ALL = "all"
+}
+
+export class TimeRangeDto {
+  @IsOptional()
+  @IsEnum(TimeRange)
+  timeRange?: TimeRange;
+}
 
 export class GetPerformanceMetricsDto {
   @IsOptional()

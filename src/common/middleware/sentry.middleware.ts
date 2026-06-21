@@ -19,7 +19,7 @@ export const sentryBreadcrumbMiddleware = (
       params: req.params,
       query: req.query,
     },
-    level: Sentry.Severity.Info,
+    level: "info",
     type: "default",
   });
 

@@ -8,6 +8,10 @@ import { PerformanceCalculations } from "../algorithms/performance-calculations"
 import {
   CalculatePerformanceDto,
   PortfolioPerformanceDto,
+  PerformanceResponseDto,
+  AllocationResponseDto,
+  ComparisonResponseDto,
+  TimeRange,
 } from "../dto/performance.dto";
 
 @Injectable()

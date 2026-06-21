@@ -1,4 +1,4 @@
-import { Module, NestModule, MiddlewareConsumer, OnModuleInit } from "@nestjs/common";
+import { Module, NestModule, MiddlewareConsumer, OnModuleInit, Inject } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { join } from "path";
@@ -28,13 +28,17 @@ import { PortfolioModule } from "./investment/portfolio/portfolio.module";
 import { RiskManagementModule } from "./investment/risk-management/risk-management.module";
 
 // Modules – defi
-import { DeFiModule } from "./defi/defi.module";
+import { DeFiModule } from "./defi/defi/defi.module";
 
 // Modules – growth
 import { AlertsModule } from "./growth/alerts/alerts.module";
 
 // Modules – health
 import { HealthModule } from "./health/health.module";
+// Modules – observability
+import { ObservabilityModule } from "./observability/observability.module";
+// Modules – profiling
+import { ProfilingModule } from "./profiling/profiling.module";
 
 // Auth entities
 import { User } from "./core/user/entities/user.entity";
@@ -49,10 +53,12 @@ import { SubmissionNonce } from "./blockchain/oracle/entities/submission-nonce.e
 import { AgentEvent } from "./infrastructure/audit/entities/agent-event.entity";
 import { ComputeResult } from "./infrastructure/audit/entities/compute-result.entity";
 import { ProvenanceRecord } from "./infrastructure/audit/entities/provenance-record.entity";
+import { OracleSubmission } from "./infrastructure/audit/entities/oracle-submission.entity";
 
 // Portfolio entities
 import { Portfolio } from "./investment/portfolio/entities/portfolio.entity";
 import { PortfolioAsset } from "./investment/portfolio/entities/portfolio-asset.entity";
+import { Transaction } from "./investment/portfolio/entities/transaction.entity";
 import { RiskProfile } from "./investment/portfolio/entities/risk-profile.entity";
 import { OptimizationHistory } from "./investment/portfolio/entities/optimization-history.entity";
 import { RebalancingEvent } from "./investment/portfolio/entities/rebalancing-event.entity";
@@ -60,11 +66,11 @@ import { PerformanceMetric } from "./investment/portfolio/entities/performance-m
 import { BacktestResult } from "./investment/portfolio/entities/backtest-result.entity";
 
 // DeFi entities
-import { DeFiPosition } from "./defi/entities/defi-position.entity";
-import { DeFiYieldRecord } from "./defi/entities/defi-yield-record.entity";
-import { DeFiTransaction } from "./defi/entities/defi-transaction.entity";
-import { DeFiYieldStrategy } from "./defi/entities/defi-yield-strategy.entity";
-import { DeFiRiskAssessment } from "./defi/entities/defi-risk-assessment.entity";
+import { DeFiPosition } from "./defi/defi/entities/defi-position.entity";
+import { DeFiYieldRecord } from "./defi/defi/entities/defi-yield-record.entity";
+import { DeFiTransaction } from "./defi/defi/entities/defi-transaction.entity";
+import { DeFiYieldStrategy } from "./defi/defi/entities/defi-yield-strategy.entity";
+import { DeFiRiskAssessment } from "./defi/defi/entities/defi-risk-assessment.entity";
 
 // Alerts entities
 import { Alert } from "./growth/alerts/entities/alert.entity";
@@ -80,21 +86,19 @@ import { StrategyAuthGuard } from "./core/auth/guards/strategy-auth.guard";
 import { GlobalExceptionFilter } from "./common/filters/global-exception.filter";
 import { SubmissionVerifierService } from "./blockchain/oracle/submission-verifier.service";
 import { LoggingMiddleware } from "./common/middleware/logging.middleware";
+import { ProfilingMiddleware } from "./profiling/profiling.middleware";
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: process.env.NODE_ENV === 'production' 
-        ? join(__dirname, '..', '.env')
-        : '.env',
+      envFilePath: join(__dirname, '..', '.env'),
       validate: async (config: Record<string, unknown>) => {
         const validatedConfig = plainToInstance(EnvironmentVariables, config, {
           enableImplicitConversion: true,
         });
         const errors = await validate(validatedConfig, {
           whitelist: true,
-          forbidNonWhitelisted: true,
         });
         if (errors.length > 0) {
           throw new Error(
@@ -118,11 +122,16 @@ import { LoggingMiddleware } from "./common/middleware/logging.middleware";
           throw new Error("DATABASE_URL must be set in production");
         }
 
+        // Use DATABASE_URL from environment if available, otherwise fall back to individual settings
+        const databaseUrl = configService.get<string>("DATABASE_URL");
         return {
           type: "postgres",
-          url:
-            configService.get("DATABASE_URL") ||
-            "postgresql://stellaiverse:password@localhost:5432/stellaiverse",
+          url: databaseUrl, // TypeORM can directly parse the DATABASE_URL string
+          host: "localhost",
+          port: 5432,
+          username: "postgres",
+          password: "BNG482@AA",
+          database: "swaptrade",
           entities: [
             User,
             EmailVerification,
@@ -132,8 +141,10 @@ import { LoggingMiddleware } from "./common/middleware/logging.middleware";
             AgentEvent,
             ComputeResult,
             ProvenanceRecord,
+            OracleSubmission,
             Portfolio,
             PortfolioAsset,
+            Transaction,
             RiskProfile,
             OptimizationHistory,
             RebalancingEvent,
@@ -148,14 +159,15 @@ import { LoggingMiddleware } from "./common/middleware/logging.middleware";
             AlertTriggerLog,
             AlertPreference,
           ],
-          synchronize: !isProduction,
-          logging: isProduction ? ["error"] : ["error", "warn", "schema"],
+          synchronize: true,
+          logging: true,
           ssl: isProduction ? { rejectUnauthorized: false } : false,
           extra: {
             max: 20,
             idleTimeoutMillis: 30000,
-            connectionTimeoutMillis: 2000,
+            connectionTimeoutMillis: 5000,
           },
+          migrationsRun: false,
         };
       },
     }),
@@ -181,6 +193,8 @@ import { LoggingMiddleware } from "./common/middleware/logging.middleware";
     DeFiModule,
     AlertsModule,
     HealthModule,
+    ObservabilityModule,
+    ProfilingModule,
   ],
 
   controllers: [AppController],
@@ -207,14 +221,15 @@ import { LoggingMiddleware } from "./common/middleware/logging.middleware";
       provide: APP_GUARD,
       useClass: KycGuard,
     },
-    SubmissionVerifierService,
   ],
 })
 export class AppModule implements NestModule, OnModuleInit {
-  constructor(private readonly verifier: SubmissionVerifierService) {}
+  constructor(@Inject(SubmissionVerifierService) private readonly verifier: SubmissionVerifierService) {}
 
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(LoggingMiddleware).forRoutes('*');
+    // Create LoggingMiddleware instance manually to fix dependency injection issue
+    const loggingMiddleware = new LoggingMiddleware();
+    consumer.apply((req, res, next) => loggingMiddleware.use(req, res, next), ProfilingMiddleware).forRoutes('*');
   }
 
   onModuleInit() {

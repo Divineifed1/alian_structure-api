@@ -5,15 +5,15 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-stellaiverse}
+      POSTGRES_USER: ${POSTGRES_USER:-alian-structure}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGE_ME_IN_PRODUCTION}
-      POSTGRES_DB: ${POSTGRES_DB:-stellaiverse}
+      POSTGRES_DB: ${POSTGRES_DB:-alian-structure}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U stellaiverse"]
+      test: ["CMD-SHELL", "pg_isready -U alian-structure"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -99,7 +99,7 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 3000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-stellaiverse}:${POSTGRES_PASSWORD:-CHANGE_ME_IN_PRODUCTION}@postgres:5432/${POSTGRES_DB:-stellaiverse}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-alian-structure}:${POSTGRES_PASSWORD:-CHANGE_ME_IN_PRODUCTION}@postgres:5432/${POSTGRES_DB:-alian-structure}
       REDIS_URL: redis://default:${REDIS_PASSWORD:-CHANGE_ME_IN_PRODUCTION}@redis:6379
       JWT_SECRET: ${JWT_SECRET:-GENERATE_WITH_GENERATE_SECRETS_SCRIPT}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001}

@@ -12,7 +12,6 @@ import {
  * Each address has a monotonically increasing nonce
  */
 @Entity("submission_nonces")
-@Index(["address"], { unique: true })
 export class SubmissionNonce {
   @PrimaryGeneratedColumn("uuid")
   id: string;
