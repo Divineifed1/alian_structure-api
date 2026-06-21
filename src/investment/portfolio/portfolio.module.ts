@@ -18,6 +18,7 @@ import { RebalancingService } from "./services/rebalancing.service";
 import { PerformanceAnalyticsService } from "./services/performance-analytics.service";
 import { BacktestingService } from "./services/backtesting.service";
 import { MLPredictionService } from "./services/ml-prediction.service";
+import { TradingTransactionService } from "./services/trading-transaction.service";
 
 // Controllers
 import { PortfolioController } from "./portfolio.controller";
@@ -59,6 +60,7 @@ import { PortfolioOwnerGuard } from "./guards/portfolio-owner.guard";
     PerformanceAnalyticsService,
     BacktestingService,
     MLPredictionService,
+    TradingTransactionService,
     PortfolioOwnerGuard,
   ],
   controllers: [PortfolioController],
@@ -68,6 +70,7 @@ import { PortfolioOwnerGuard } from "./guards/portfolio-owner.guard";
     PerformanceAnalyticsService,
     BacktestingService,
     MLPredictionService,
+    TradingTransactionService,
   ],
 })
 export class PortfolioModule {}

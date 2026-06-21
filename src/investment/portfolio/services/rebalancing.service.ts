@@ -9,6 +9,7 @@ import {
 import { Portfolio } from "../entities/portfolio.entity";
 import { PortfolioAsset } from "../entities/portfolio-asset.entity";
 import { PortfolioService } from "./portfolio.service";
+import { TradingTransactionService } from "./trading-transaction.service";
 
 @Injectable()
 export class RebalancingService {
@@ -22,6 +23,7 @@ export class RebalancingService {
     @InjectRepository(PortfolioAsset)
     private portfolioAssetRepository: Repository<PortfolioAsset>,
     private portfolioService: PortfolioService,
+    private tradingService: TradingTransactionService,
   ) {}
 
   /**
@@ -69,6 +71,7 @@ export class RebalancingService {
       quantity: number;
       price: number;
       value: number;
+      estimatedTaxImpact: number;
     }>
   > {
     const portfolio = await this.portfolioService.getPortfolio(portfolioId);
@@ -82,6 +85,7 @@ export class RebalancingService {
       quantity: number;
       price: number;
       value: number;
+      estimatedTaxImpact: number;
     }> = [];
 
     for (const asset of assets) {
@@ -96,13 +100,21 @@ export class RebalancingService {
         const valueDifference = targetValue - currentValue;
 
         const quantity = valueDifference / (asset.currentPrice || 1);
+        const action = quantity > 0 ? "buy" : "sell";
+        let estimatedTaxImpact = 0;
+
+        if (action === "sell") {
+          const capitalGains = Math.max(0, (asset.currentPrice - (asset.costBasisPerShare || 0)) * Math.abs(quantity));
+          estimatedTaxImpact = capitalGains * 0.15; // Assume 15% capital gains tax
+        }
 
         trades.push({
           ticker: asset.ticker,
-          action: quantity > 0 ? "buy" : "sell",
+          action,
           quantity: Math.abs(quantity),
           price: asset.currentPrice || 0,
           value: Math.abs(valueDifference),
+          estimatedTaxImpact,
         });
       }
     }
@@ -137,6 +149,7 @@ export class RebalancingService {
         portfolio.targetAllocation || portfolio.currentAllocation,
       trades,
       estimatedCost: trades.reduce((sum, t) => sum + t.value, 0),
+      estimatedTaxImpact: trades.reduce((sum, t) => sum + t.estimatedTaxImpact, 0),
     });
 
     this.logger.log(
@@ -172,6 +185,7 @@ export class RebalancingService {
     rebalancingEventId: string,
     actualCost?: number,
     slippage?: number,
+    dryRun: boolean = false,
   ): Promise<RebalancingEvent> {
     const event = await this.rebalancingRepository.findOne({
       where: { id: rebalancingEventId },
@@ -180,6 +194,22 @@ export class RebalancingService {
 
     if (!event) {
       throw new BadRequestException("Rebalancing event not found");
+    }
+
+    if (dryRun) {
+      this.logger.log(`Dry run for rebalancing event ${rebalancingEventId}`);
+      return event;
+    }
+
+    // Execute trades
+    for (const trade of event.trades) {
+      await this.tradingService.executeTrade(
+        event.portfolioId,
+        trade.ticker,
+        trade.action,
+        trade.quantity,
+        trade.price,
+      );
     }
 
     // Update portfolio allocation

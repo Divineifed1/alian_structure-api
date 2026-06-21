@@ -524,6 +524,26 @@ export class PortfolioService {
     });
   }
 
+  async setTargetAllocation(
+    portfolioId: string,
+    allocations: { [ticker: string]: number },
+  ): Promise<Portfolio> {
+    const portfolio = await this.getPortfolio(portfolioId);
+
+    // Validate that the allocations sum to 100%
+    const totalAllocation = Object.values(allocations).reduce(
+      (sum, allocation) => sum + allocation,
+      0,
+    );
+
+    if (Math.abs(totalAllocation - 100) > 0.01) {
+      throw new BadRequestException("Target allocations must sum to 100%");
+    }
+
+    portfolio.targetAllocation = allocations;
+    return this.portfolioRepository.save(portfolio);
+  }
+
   /**
    * Delete portfolio
    */
