@@ -32,6 +32,14 @@ export class RiskManagementService {
     return this.riskConfigs.get(userId) ?? null;
   }
 
+  async calculateRiskScore(portfolioId: string): Promise<number> {
+    // This is a placeholder implementation. In a real-world scenario,
+    // you would fetch the portfolio and its assets, calculate the
+    // necessary metrics (VaR, max drawdown, etc.), and then call
+    // the private calculateRiskScore method.
+    return Math.random() * 100;
+  }
+
   async calculatePortfolioRisk(
     userId: string,
     positions: Position[],

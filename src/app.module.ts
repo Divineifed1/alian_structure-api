@@ -32,6 +32,7 @@ import { DeFiModule } from "./defi/defi.module";
 
 // Modules – growth
 import { AlertsModule } from "./growth/alerts/alerts.module";
+import { DashboardModule } from "./dashboard/dashboard.module";
 
 // Modules – health
 import { HealthModule } from "./health/health.module";

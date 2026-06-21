@@ -22,6 +22,28 @@ export class PerformanceAnalyticsService {
   ) {}
 
   /**
+   * Get the current total value of a portfolio.
+   */
+  async getPortfolioValue(
+    portfolioId: string,
+  ): Promise<{ totalValue: number }> {
+    const portfolio = await this.portfolioRepository.findOne({
+      where: { id: portfolioId },
+      relations: ["assets"],
+    });
+
+    if (!portfolio) {
+      throw new NotFoundException("Portfolio not found");
+    }
+
+    const totalValue = PerformanceCalculations.sum(
+      (portfolio.assets || []).map((a) => Number(a.value) || 0),
+    );
+
+    return { totalValue };
+  }
+
+  /**
    * Map a granular asset type onto a high-level allocation category.
    */
   private mapAssetTypeToCategory(type: AssetType): string {
