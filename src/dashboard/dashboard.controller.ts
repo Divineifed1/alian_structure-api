@@ -1,5 +1,4 @@
-
-import { Controller, Get, Param, Query, UseGuards, UseInterceptors, CacheInterceptor } from "@nestjs/common";
+import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth, ApiOperation } from "@nestjs/swagger";
 import { JwtAuthGuard } from "src/core/auth/jwt.guard";
 import { DashboardService } from "./dashboard.service";
@@ -10,7 +9,6 @@ import { TimeRangeDto } from "./dto/dashboard.dto";
 @ApiTags("Portfolio Dashboard")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@UseInterceptors(CacheInterceptor)
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
@@ -21,7 +19,7 @@ export class DashboardController {
     @Param('id') id: string,
     @Query() query: TimeRangeDto,
   ) {
-    return this.dashboardService.getSummary(id, query.timeRange);
+    return this.dashboardService.getSummary(id, query.timeRange as any);
   }
 
   @Get(':id/performance-history')
@@ -31,7 +29,7 @@ export class DashboardController {
     @Param('id') id: string,
     @Query() query: TimeRangeDto,
   ) {
-    return this.dashboardService.getPerformanceHistory(id, query.timeRange);
+    return this.dashboardService.getPerformanceHistory(id, query.timeRange as any);
   }
 
   @Get(':id/allocation')
