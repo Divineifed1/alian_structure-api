@@ -49,7 +49,6 @@ export class OracleSubmission {
    * Hash of the data for integrity verification
    */
   @Column({ type: "varchar", length: 66 })
-  @Index()
   dataHash: string;
 
   /**

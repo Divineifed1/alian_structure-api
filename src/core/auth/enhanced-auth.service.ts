@@ -11,6 +11,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import * as bcrypt from "bcrypt";
 import { JwtService } from "@nestjs/jwt";
+import { v4 as uuidv4 } from "uuid";
 import * as speakeasy from "speakeasy";
 import * as qrcode from "qrcode";
 import { EmailService } from "./email.service";
@@ -38,7 +39,7 @@ export class EnhancedAuthService {
     ipAddress: string,
     userAgent?: string,
   ): Promise<{ accessToken: string; refreshToken: string; user: Partial<User>; requiresTwoFactor?: boolean }> {
-    const { email, password, username } = registerDto;
+    const { email, password, username, referralCode } = registerDto;
 
     // Check if user already exists
     const existingUser = await this.userRepository.findOne({
@@ -58,6 +59,20 @@ export class EnhancedAuthService {
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+    // Generate unique referral code for the new user
+    const userReferralCode = uuidv4().substring(0, 8).toUpperCase();
+
+    // Check if a referral code was provided
+    let referredBy: User | null = null;
+    if (referralCode) {
+      referredBy = await this.userRepository.findOne({
+        where: { referralCode: referralCode.toUpperCase() },
+      });
+      if (!referredBy) {
+        throw new BadRequestException("Invalid referral code");
+      }
+    }
+
     // Create user
     const user = this.userRepository.create({
       email,
@@ -66,6 +81,8 @@ export class EnhancedAuthService {
       walletAddress: `email_${email}`, // Generate a pseudo wallet address for email users
       emailVerified: false,
       isActive: true,
+      referralCode: userReferralCode,
+      referredBy: referredBy || undefined,
     });
 
     await this.userRepository.save(user);
@@ -196,8 +213,8 @@ export class EnhancedAuthService {
 
     // Generate TOTP secret
     const secret = speakeasy.generateSecret({
-      name: `StellAIverse (${user.email})`,
-      issuer: "StellAIverse",
+      name: `alian-structure (${user.email})`,
+      issuer: "alian-structure",
     });
 
     // Generate QR code
@@ -349,7 +366,7 @@ export class EnhancedAuthService {
       username: user.username,
       role: user.role,
     };
-    const accessToken = this.jwtService.sign(payload, { expiresIn: "15m" });
+    const accessToken = this.jwtService.sign(payload);
 
     // Generate refresh token
     const refreshTokenValue = this.generateRefreshToken();

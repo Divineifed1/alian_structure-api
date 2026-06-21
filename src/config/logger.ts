@@ -22,7 +22,7 @@ export const logger = pino({
   },
   base: {
     env: process.env.NODE_ENV,
-    service: "stellAIverse-backend",
+    service: "alian-structure-api",
   },
   timestamp: pino.stdTimeFunctions.isoTime,
 });

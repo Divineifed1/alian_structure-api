@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/node";
+import { SeverityLevel } from "@sentry/core";
 import {
   ExceptionFilter,
   Catch,
@@ -67,7 +68,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         scope.setExtra("params", request.params);
         scope.setUser({ ip_address: request.ip });
 
-        const level = status >= 500 ? Sentry.Severity.Error : Sentry.Severity.Warning;
+        const level: SeverityLevel = status >= 500 ? "error" : "warning";
         scope.setLevel(level);
 
         const errorToCapture =

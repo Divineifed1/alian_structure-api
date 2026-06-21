@@ -56,11 +56,11 @@ export class AppController {
     schema: {
       type: "object",
       properties: {
-        name: { type: "string", example: "StellAIverse Backend" },
+        name: { type: "string", example: "alian-structure Backend" },
         version: { type: "string", example: "1.0.0" },
         description: {
           type: "string",
-          example: "Comprehensive API for StellAIverse services",
+          example: "Comprehensive API for alian-structure services",
         },
         modules: {
           type: "array",

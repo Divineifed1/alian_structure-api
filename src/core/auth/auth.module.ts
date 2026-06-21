@@ -4,7 +4,6 @@ import { PassportModule } from "@nestjs/passport";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { AuthController } from "./auth.controller";
-import { EnhancedAuthController } from "./enhanced-auth.controller";
 import { AuthService } from "./auth.service";
 import { EnhancedAuthService } from "./enhanced-auth.service";
 import { ChallengeService } from "./challenge.service";
@@ -69,7 +68,7 @@ import { RefreshToken, TwoFactorAuth } from "./entities/auth.entity";
     }),
     TypeOrmModule.forFeature([User, EmailVerification, Wallet, RefreshToken, TwoFactorAuth]),
   ],
-  controllers: [AuthController, EnhancedAuthController],
+  controllers: [AuthController],
   providers: [
     // Legacy services (for backward compatibility)
     AuthService,
@@ -123,6 +122,7 @@ export class AuthModule implements OnModuleInit {
     private readonly traditionalStrategy: TraditionalStrategy,
     private readonly oauthStrategy: OAuthStrategy,
     private readonly apiKeyStrategy: ApiKeyStrategy,
+    private readonly tokenBlacklistService: TokenBlacklistService,
   ) {}
 
   onModuleInit(): void {

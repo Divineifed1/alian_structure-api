@@ -32,7 +32,7 @@ exports.AppModule = AppModule = __decorate([
             typeorm_1.TypeOrmModule.forRoot({
                 type: "postgres",
                 url: process.env.DATABASE_URL ||
-                    "postgresql://stellaiverse:password@localhost:5432/stellaiverse",
+                    "postgresql://alian-structure:password@localhost:5432/alian-structure",
                 entities: [user_entity_1.User, email_verification_entity_1.EmailVerification],
                 synchronize: process.env.NODE_ENV !== "production", // Auto-sync in development
                 logging: process.env.NODE_ENV === "development",

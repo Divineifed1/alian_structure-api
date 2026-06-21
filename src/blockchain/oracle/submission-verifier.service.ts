@@ -1,6 +1,7 @@
 // src/oracle/submission-verifier.service.ts
 
 import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { AuditLogService } from "../../infrastructure/audit/audit-log.service";
 
 interface OnChainSubmission {
@@ -21,13 +22,23 @@ export class SubmissionVerifierService {
 
   private pollingInterval = 15000; // 15s
   private isRunning = false;
+  private isEnabled = false;
 
-  constructor(private readonly auditLogService: AuditLogService) {}
+  constructor(private readonly auditLogService: AuditLogService, private readonly configService: ConfigService) {
+    // Only enable if blockchain configuration is present
+    const rpcUrl = this.configService.get<string>("ETH_RPC_URL");
+    const contractAddress = this.configService.get<string>("ORACLE_CONTRACT_ADDRESS");
+    this.isEnabled = !!(rpcUrl && contractAddress);
+  }
 
   // -------------------------------------
   // START POLLING
   // -------------------------------------
   start() {
+    if (!this.isEnabled) {
+      this.logger.warn("SubmissionVerifierService is disabled: Missing required blockchain configuration. Set ETH_RPC_URL and ORACLE_CONTRACT_ADDRESS to enable.");
+      return;
+    }
     if (this.isRunning) return;
 
     this.isRunning = true;

@@ -3,17 +3,19 @@ import {
   ApiOperation,
   ApiResponse,
   ApiTags,
+  ApiExtraModels,
 } from '@nestjs/swagger';
 import { Response } from 'express';
 import { Public } from '../common/decorators/public.decorator';
 import { SkipKyc } from '../common/decorators/skip-kyc.decorator';
-import { HealthResponseDto } from './dto/health-response.dto';
+import { HealthResponseDto, ComponentStatusDto } from './dto/health-response.dto';
 import { HealthService } from './health.service';
 
 @ApiTags('Health')
 @Controller('health')
 @Public()
 @SkipKyc()
+@ApiExtraModels(HealthResponseDto, ComponentStatusDto)
 export class HealthController {
   constructor(private readonly healthService: HealthService) {}
 

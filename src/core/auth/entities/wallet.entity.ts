@@ -29,7 +29,6 @@ export enum WalletType {
  * Supports multi-wallet linking, delegation, and recovery
  */
 @Entity("wallets")
-@Index(["address"])
 @Index(["userId", "status"])
 @Index(["userId", "type"])
 export class Wallet {
@@ -40,7 +39,6 @@ export class Wallet {
    * Wallet address (Ethereum format)
    */
   @Column({ type: "varchar", length: 42, unique: true })
-  @Index()
   address: string;
 
   /**
