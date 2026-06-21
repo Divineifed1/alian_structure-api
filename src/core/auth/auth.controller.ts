@@ -25,7 +25,7 @@ import { SessionRecoveryService } from "./session-recovery.service";
 import { DelegationService, DelegationPermission } from "./delegation.service";
 import { JwtAuthGuard } from "./jwt.guard";
 import { AuthService } from "./auth.service";
-import { RegisterDto, LoginDto } from "./dto/auth.dto";
+import { RegisterDto, LoginDto, TwoFactorVerifyDto } from "./dto/auth.dto";
 import { LinkEmailDto } from "./dto/link-email.dto";
 import { VerifyEmailDto } from "./dto/verify-email.dto";
 import { RequestRecoveryDto } from "./dto/request-recovery.dto";
@@ -36,6 +36,7 @@ import { Throttle } from "@nestjs/throttler";
 import { SensitiveRateLimit } from "../../common/decorators/rate-limit.decorator";
 import { Roles, Role } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guard/roles.guard";
+import { AdminTwoFactorGuard } from "./guards/admin-two-factor.guard";
 
 export class RequestChallengeDto {
   @ApiProperty({
@@ -63,7 +64,7 @@ export class VerifySignatureDto {
 }
 
 // Auth endpoints are high-value targets — enforce strict per-user/IP limit: 5 req/min
-@SensitiveRateLimit('auth')
+@SensitiveRateLimit("auth")
 @ApiTags("Authentication")
 @Throttle({ default: { ttl: 60000, limit: 10 } })
 @Controller("auth")
@@ -123,15 +124,49 @@ export class AuthController {
   // Wallet Authentication Endpoints
 
   @Post("verify")
+  @ApiOperation({
+    summary: "Verify wallet signature",
+    description:
+      "Verify a signed challenge. If the account has 2FA enabled, returns " +
+      "{ requiresTwoFactor: true, userId } instead of a token; complete login " +
+      "via POST /auth/verify-2fa.",
+  })
   async verifySignature(@Body() dto: VerifySignatureDto) {
     const result = await this.walletAuthService.verifySignatureAndIssueToken(
       dto.message,
       dto.signature,
     );
+
+    if (result.requiresTwoFactor) {
+      return {
+        requiresTwoFactor: true,
+        userId: result.userId,
+        address: result.address,
+      };
+    }
+
     return {
       token: result.token,
       address: result.address,
     };
+  }
+
+  @Post("verify-2fa")
+  @ApiOperation({
+    summary: "Complete wallet login with 2FA",
+    description:
+      "Verify the TOTP or backup code for a 2FA-enabled wallet account and " +
+      "issue the authenticated wallet token.",
+  })
+  @ApiResponse({ status: 201, description: "2FA verified, token issued" })
+  @ApiResponse({ status: 401, description: "Invalid code or account locked" })
+  async verifyWalletTwoFactor(
+    @Body() dto: { userId: string } & TwoFactorVerifyDto,
+  ) {
+    return this.walletAuthService.verifyWalletTwoFactorAndIssueToken(
+      dto.userId,
+      { code: dto.code, backupCode: dto.backupCode },
+    );
   }
 
   // Email Linking Endpoints
@@ -367,10 +402,11 @@ export class AuthController {
     return this.delegationService.getWalletDelegations(walletId, userId);
   }
 
-  // Admin Endpoints (RBAC protected)
+  // Admin Endpoints (RBAC protected + mandatory 2FA for admins)
 
   @Roles(Role.ADMIN)
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, AdminTwoFactorGuard)
+  @ApiBearerAuth()
   @Get("admin/users")
   async listUsers() {
     // Example admin-only endpoint
@@ -378,7 +414,8 @@ export class AuthController {
   }
 
   @Roles(Role.ADMIN, Role.OPERATOR)
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, AdminTwoFactorGuard)
+  @ApiBearerAuth()
   @Get("admin/stats")
   async getStats() {
     // Example operator/admin endpoint
