@@ -22,6 +22,10 @@ export class AuthService {
     private readonly tokenBlacklist: TokenBlacklistService,
   ) {}
 
+  /**
+   * @deprecated Use EnhancedAuthService instead.
+   * This method lacks refresh-token rotation and 2FA support.
+   */
   async register(
     registerDto: RegisterDto,
   ): Promise<{ token: string; user: Partial<User> }> {
@@ -104,6 +108,10 @@ export class AuthService {
     };
   }
 
+  /**
+   * @deprecated Use EnhancedAuthService instead.
+   * This method lacks refresh-token rotation and 2FA support.
+   */
   async login(
     loginDto: LoginDto,
   ): Promise<{ token: string; user: Partial<User> }> {

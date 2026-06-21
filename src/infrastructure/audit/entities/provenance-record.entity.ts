@@ -33,7 +33,6 @@ export enum ProvenanceAction {
 @Index(["userId", "createdAt"])
 @Index(["status", "createdAt"])
 @Index(["action", "createdAt"])
-@Index(["onChainTxHash"])
 export class ProvenanceRecord {
   @PrimaryGeneratedColumn("uuid")
   id: string;

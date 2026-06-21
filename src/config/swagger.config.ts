@@ -1,21 +1,25 @@
 import { INestApplication } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { ConfigService } from "@nestjs/config";
 
 export function setupSwagger(app: INestApplication): void {
+  const configService = app.get(ConfigService);
+  const port = process.env.PORT || configService.get("PORT", 3001);
+  
   const config = new DocumentBuilder()
-    .setTitle("StellAIverse Backend API")
+    .setTitle("alian-structure Backend API")
     .setDescription(
-      "Comprehensive API documentation for StellAIverse backend services including agent management, oracle submissions, compute operations, and audit trails",
+      "Comprehensive API documentation for alian-structure backend services including agent management, oracle submissions, compute operations, and audit trails",
     )
     .setVersion("1.0.0")
     .setContact(
-      "StellAIverse Team",
-      "https://stellaiverse.com",
-      "api@stellaiverse.com",
+      "alian-structure Team",
+      "https://alian-structure.com",
+      "api@alian-structure.com",
     )
     .setLicense("Apache 2.0", "https://www.apache.org/licenses/LICENSE-2.0")
-    .addServer("http://localhost:3000/api/v1", "Development Server")
-    .addServer("https://api.stellaiverse.com/api/v1", "Production Server")
+    .addServer(`http://localhost:${port}`, "Development Server")
+    .addServer("https://api.alian-structure.com", "Production Server")
     .addBearerAuth(
       {
         type: "http",
@@ -36,6 +40,7 @@ export function setupSwagger(app: INestApplication): void {
       },
       "api-key",
     )
+    .addTag("Health", "Liveness, readiness, and startup probes for Kubernetes orchestration")
     .addTag("Authentication", "User authentication and authorization")
     .addTag("Users", "User management operations")
     .addTag("Oracle", "Oracle data submissions")
@@ -49,7 +54,7 @@ export function setupSwagger(app: INestApplication): void {
   });
 
   SwaggerModule.setup("api/docs", app, document, {
-    customSiteTitle: "StellAIverse API Documentation",
+    customSiteTitle: "alian-structure API Documentation",
     customfavIcon: "/favicon.ico",
     customCss: `
       .topbar-wrapper img { content: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiByeD0iMTAiIGZpbGw9IiM0Mjg1RjQiLz4KPHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHZpZXdCb3g9IjAgMCAzMCAzMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4PSIxMCIgeT0iMTAiPgo8Y2lyY2xlIGN4PSIxNSIgY3k9IjE1IiByPSI4IiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4KPC9zdmc+'); }

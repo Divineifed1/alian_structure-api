@@ -10,11 +10,15 @@ export enum AlertType {
   PRICE = "price",
   PORTFOLIO = "portfolio",
   LIQUIDATION = "liquidation",
+  ALLOCATION_DRIFT = "allocation_drift",
+  MILESTONE = "milestone",
+  PERFORMANCE = "performance",
 }
 
 export enum AlertCondition {
   ABOVE = "above",
   BELOW = "below",
+  DEVIATION = "deviation",
 }
 
 @Entity("alerts")

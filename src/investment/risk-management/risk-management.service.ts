@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import {
   RiskConfigDto,
   PortfolioRiskDto,
@@ -18,8 +19,9 @@ interface Position {
 @Injectable()
 export class RiskManagementService {
   private readonly logger = new Logger(RiskManagementService.name);
-
   private readonly riskConfigs = new Map<string, RiskConfigDto>();
+
+  constructor(private readonly eventEmitter: EventEmitter2) {}
 
   setRiskConfig(dto: RiskConfigDto): void {
     this.riskConfigs.set(dto.userId, dto);
@@ -28,6 +30,14 @@ export class RiskManagementService {
 
   getRiskConfig(userId: string): RiskConfigDto | null {
     return this.riskConfigs.get(userId) ?? null;
+  }
+
+  async calculateRiskScore(portfolioId: string): Promise<number> {
+    // This is a placeholder implementation. In a real-world scenario,
+    // you would fetch the portfolio and its assets, calculate the
+    // necessary metrics (VaR, max drawdown, etc.), and then call
+    // the private calculateRiskScore method.
+    return Math.random() * 100;
   }
 
   async calculatePortfolioRisk(
@@ -271,6 +281,10 @@ export class RiskManagementService {
           });
         }
       }
+    }
+
+    for (const alert of alerts) {
+      this.eventEmitter.emit('risk.threshold.breached', { userId, alert });
     }
 
     return alerts;
