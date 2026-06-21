@@ -13,6 +13,10 @@ import { verifyMessage } from "ethers";
 import { ChallengeService } from "./challenge.service";
 import { User } from "../user/entities/user.entity";
 import { Wallet, WalletStatus, WalletType } from "./entities/wallet.entity";
+import { ConfigService } from "@nestjs/config";
+import { EmailService } from "./email.service";
+import { ProvenanceService } from "../../infrastructure/audit/provenance.service";
+import { ProvenanceAction, ProvenanceStatus } from "../../infrastructure/audit/entities/provenance-record.entity";
 
 export interface AuthPayload {
   address: string;
@@ -33,6 +37,9 @@ export class WalletAuthService {
     private userRepository: Repository<User>,
     @InjectRepository(Wallet)
     private walletRepository: Repository<Wallet>,
+    private configService: ConfigService,
+    private emailService: EmailService,
+    private provenanceService: ProvenanceService,
   ) {}
 
   /**
@@ -42,54 +49,98 @@ export class WalletAuthService {
     message: string,
     signature: string,
   ): Promise<{ token: string; address: string }> {
-    // Extract challenge ID from message
-    const challengeId = this.challengeService.extractChallengeId(message);
-    if (!challengeId) {
-      throw new UnauthorizedException("Invalid challenge message format");
-    }
-
-    // Get and consume the challenge
-    const challenge = this.challengeService.consumeChallenge(challengeId);
-    if (!challenge) {
-      throw new UnauthorizedException(
-        "Challenge not found or expired. Please request a new challenge.",
-      );
-    }
-
-    // Verify the signature
-    let recoveredAddress: string;
+    let tokenResult: { token: string; address: string };
+    let userIdForAudit: string | undefined = undefined;
     try {
-      recoveredAddress = verifyMessage(message, signature);
-    } catch (error) {
-      throw new UnauthorizedException("Invalid signature");
+      // Extract challenge ID from message
+      const challengeId = this.challengeService.extractChallengeId(message);
+      if (!challengeId) {
+        throw new UnauthorizedException("Invalid challenge message format");
+      }
+
+      // Get and consume the challenge
+      const challenge = this.challengeService.consumeChallenge(challengeId);
+      if (!challenge) {
+        throw new UnauthorizedException(
+          "Challenge not found or expired. Please request a new challenge.",
+        );
+      }
+
+      // Verify the signature
+      let recoveredAddress: string;
+      try {
+        recoveredAddress = verifyMessage(message, signature);
+      } catch (error) {
+        throw new UnauthorizedException("Invalid signature");
+      }
+
+      // Verify the recovered address matches the challenge address
+      if (recoveredAddress.toLowerCase() !== challenge.address) {
+        throw new UnauthorizedException(
+          "Signature does not match challenge address",
+        );
+      }
+
+      const normalized = recoveredAddress.toLowerCase();
+
+      // Find wallet record (any linked wallet can authenticate)
+      const wallet = await this.walletRepository.findOne({
+        where: { address: normalized },
+        relations: ["user"],
+      });
+
+      if (!wallet) {
+        throw new UnauthorizedException("Wallet not linked to any account");
+      }
+
+      // If wallet is delegated, verify it has AUTHENTICATE permission
+      if (wallet.type === WalletType.DELEGATED) {
+        const perms = wallet.delegationPermissions || [];
+        if (!perms.includes("authenticate") && !perms.includes("AUTHENTICATE")) {
+          throw new UnauthorizedException("Delegated wallet does not have authenticate permission");
+        }
+      }
+
+      const user = wallet.user;
+      userIdForAudit = user?.id;
+
+      const payload: AuthPayload = {
+        address: normalized,
+        email: user?.emailVerified ? user.email : undefined,
+        role: user?.role || "user",
+        iat: Math.floor(Date.now() / 1000),
+      };
+
+      const token = this.jwtService.sign({ sub: user?.id, ...payload });
+
+      tokenResult = { token, address: normalized };
+
+      // Audit successful authentication
+      await this.provenanceService.createProvenanceRecord({
+        agentId: "wallet-auth",
+        userId: userIdForAudit,
+        action: ProvenanceAction.REQUEST_RECEIVED,
+        input: { address: normalized, method: "wallet_signature", success: true },
+        status: ProvenanceStatus.SUCCESS,
+      });
+
+      return tokenResult;
+    } catch (err) {
+      // Audit failed authentication attempt
+      try {
+        await this.provenanceService.createProvenanceRecord({
+          agentId: "wallet-auth",
+          userId: userIdForAudit,
+          action: ProvenanceAction.REQUEST_RECEIVED,
+          input: { message: message || "", method: "wallet_signature", success: false, error: err?.message },
+          status: ProvenanceStatus.FAILED,
+        });
+      } catch (auditErr) {
+        this.logger.warn(`Failed to create provenance record for failed auth: ${auditErr.message}`);
+      }
+
+      throw err;
     }
-
-    // Verify the recovered address matches the challenge address
-    if (recoveredAddress.toLowerCase() !== challenge.address) {
-      throw new UnauthorizedException(
-        "Signature does not match challenge address",
-      );
-    }
-
-    // Fetch user to get email if linked
-    const user = await this.userRepository.findOne({
-      where: { walletAddress: recoveredAddress.toLowerCase() },
-    });
-
-    // Issue JWT token with email and role if available
-    const payload: AuthPayload = {
-      address: recoveredAddress.toLowerCase(),
-      email: user?.emailVerified ? user.email : undefined,
-      role: user?.role || "user",
-      iat: Math.floor(Date.now() / 1000),
-    };
-
-    const token = this.jwtService.sign(payload);
-
-    return {
-      token,
-      address: recoveredAddress.toLowerCase(),
-    };
   }
 
   /**
@@ -113,6 +164,7 @@ export class WalletAuthService {
     message: string,
     signature: string,
     walletName?: string,
+    permissions?: string[],
     clientInfo?: { ip?: string; userAgent?: string },
   ): Promise<{
     message: string;
@@ -170,6 +222,12 @@ export class WalletAuthService {
       where: { userId: currentUserId },
     });
 
+    // Enforce per-account wallet limit
+    const maxWallets = Number(this.configService.get<number | string>("WALLETS_PER_ACCOUNT") || 10);
+    if (existingWallets.length >= maxWallets) {
+      throw new BadRequestException(`Wallet limit reached. Maximum allowed: ${maxWallets}`);
+    }
+
     const isFirstWallet = existingWallets.length === 0;
     const walletType = isFirstWallet
       ? WalletType.PRIMARY
@@ -183,6 +241,7 @@ export class WalletAuthService {
       status: WalletStatus.ACTIVE,
       isPrimary: isFirstWallet,
       name: walletName || `Wallet ${existingWallets.length + 1}`,
+      delegationPermissions: permissions && permissions.length > 0 ? permissions : undefined,
       verificationSignature: signature,
       verificationChallenge: message,
       verifiedAt: new Date(),
@@ -200,6 +259,39 @@ export class WalletAuthService {
       );
     }
 
+    // Send email notification to user (if email exists)
+    const user = await this.userRepository.findOne({ where: { id: currentUserId } });
+    if (user && user.email) {
+      try {
+        await this.emailService.sendMail({
+          to: user.email,
+          subject: "New wallet linked to your account",
+          html: `<p>Hello,</p><p>A new wallet <strong>${normalizedNew}</strong> was linked to your account.</p><p>If this wasn't you, please secure your account immediately.</p>`,
+        });
+      } catch (err) {
+        this.logger.warn(`Failed to send wallet-linked email to ${user.email}: ${err.message}`);
+      }
+    }
+
+    // Audit: create provenance record for wallet linking
+    try {
+      await this.provenanceService.createProvenanceRecord({
+        agentId: "wallet-service",
+        userId: currentUserId,
+        action: ProvenanceAction.REQUEST_RECEIVED,
+        input: {
+          walletId: wallet.id,
+          walletAddress: normalizedNew,
+          isPrimary: wallet.isPrimary,
+          permissions: wallet.delegationPermissions,
+        },
+        status: ProvenanceStatus.SUCCESS,
+        clientIp: clientInfo?.ip,
+        userAgent: clientInfo?.userAgent,
+      });
+    } catch (err) {
+      this.logger.warn(`Failed to create provenance record for wallet link: ${err.message}`);
+    }
     this.logger.log(
       `Wallet linked: ${normalizedNew} for user ${currentUserId}`,
     );

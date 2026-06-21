@@ -193,6 +193,7 @@ export class AuthController {
       dto.message,
       dto.signature,
       dto.walletName,
+      dto.permissions,
       { ip: req.ip, userAgent: req.headers["user-agent"] },
     );
   }
