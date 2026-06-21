@@ -5,6 +5,10 @@ module.exports = {
   transform: {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
+  moduleNameMapper: {
+    // Resolve absolute "src/..." imports (tsconfig baseUrl) under rootDir.
+    '^src/(.*)$': '<rootDir>/$1',
+  },
   collectCoverageFrom: [
     '**/*.(t|j)s',
   ],

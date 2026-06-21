@@ -197,4 +197,4 @@ describe("EnhancedAuthService", () => {
     });
   });
 });</content>
-<parameter name="filePath">/workspaces/stellAIverse-backend/test/enhanced-auth.service.spec.ts
+<parameter name="filePath">/workspaces/alian-structure-api/test/enhanced-auth.service.spec.ts

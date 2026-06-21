@@ -5,6 +5,7 @@ import { BullModule } from "@nestjs/bull";
 // Entities
 import { Portfolio } from "./entities/portfolio.entity";
 import { PortfolioAsset } from "./entities/portfolio-asset.entity";
+import { Transaction } from "./entities/transaction.entity";
 import { RiskProfile } from "./entities/risk-profile.entity";
 import { OptimizationHistory } from "./entities/optimization-history.entity";
 import { RebalancingEvent } from "./entities/rebalancing-event.entity";
@@ -29,6 +30,7 @@ import { PortfolioOwnerGuard } from "./guards/portfolio-owner.guard";
     TypeOrmModule.forFeature([
       Portfolio,
       PortfolioAsset,
+      Transaction,
       RiskProfile,
       OptimizationHistory,
       RebalancingEvent,

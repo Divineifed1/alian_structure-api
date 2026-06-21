@@ -44,18 +44,32 @@ export class CompoundAdapter implements ProtocolAdapter {
   }
 
   private initializeProviders() {
-    this.providers.set(
-      "ethereum",
-      new ethers.JsonRpcProvider(this.configService.get<string>("ETH_RPC_URL", "")),
-    );
-    this.providers.set(
-      "arbitrum",
-      new ethers.JsonRpcProvider(this.configService.get<string>("ARB_RPC_URL", "")),
-    );
-    this.providers.set(
-      "polygon",
-      new ethers.JsonRpcProvider(this.configService.get<string>("POLY_RPC_URL", "")),
-    );
+    const ethRpcUrl = this.configService.get<string>("ETH_RPC_URL", "");
+    const arbRpcUrl = this.configService.get<string>("ARB_RPC_URL", "");
+    const polyRpcUrl = this.configService.get<string>("POLY_RPC_URL", "");
+
+    if (ethRpcUrl) {
+      this.providers.set(
+        "ethereum",
+        new ethers.JsonRpcProvider(ethRpcUrl),
+      );
+    }
+    if (arbRpcUrl) {
+      this.providers.set(
+        "arbitrum",
+        new ethers.JsonRpcProvider(arbRpcUrl),
+      );
+    }
+    if (polyRpcUrl) {
+      this.providers.set(
+        "polygon",
+        new ethers.JsonRpcProvider(polyRpcUrl),
+      );
+    }
+
+    if (this.providers.size === 0) {
+      this.logger.warn("CompoundAdapter is disabled: No RPC URLs configured. Set ETH_RPC_URL, ARB_RPC_URL, or POLY_RPC_URL to enable DeFi features.");
+    }
   }
 
   async getPosition(
@@ -65,7 +79,7 @@ export class CompoundAdapter implements ProtocolAdapter {
   ): Promise<PositionData> {
     try {
       const provider = this.providers.get(chain);
-      if (!provider) throw new Error(`Unsupported chain: ${chain}`);
+      if (!provider) throw new Error(`Unsupported chain: ${chain} or provider not configured. Set appropriate RPC URL to enable.`);
 
       const comptroller = new ethers.Contract(
         this.comptrollerAddress,

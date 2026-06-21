@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  DeleteDateColumn,
   Index,
   ManyToOne,
   OneToMany,
@@ -13,6 +14,7 @@ import { PortfolioAsset } from "./portfolio-asset.entity";
 import { OptimizationHistory } from "./optimization-history.entity";
 import { RebalancingEvent } from "./rebalancing-event.entity";
 import { PerformanceMetric } from "./performance-metric.entity";
+import { Transaction } from "./transaction.entity";
 import { User } from "src/core/user/entities/user.entity";
 
 export enum PortfolioStatus {
@@ -21,17 +23,33 @@ export enum PortfolioStatus {
   ARCHIVED = "archived",
 }
 
+export enum PortfolioType {
+  MANUAL = "manual",
+  AUTOMATED = "automated",
+  TRADING = "trading",
+  HODL = "hodl",
+  OTHER = "other",
+}
+
 @Entity("portfolios")
 @Index(["userId", "status"])
+@Index(["userId", "createdAt"])
 export class Portfolio {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @Column({ unique: true })
+  @Column()
   name: string;
 
   @Column({ type: "text", nullable: true })
   description: string;
+
+  @Column({
+    type: "enum",
+    enum: PortfolioType,
+    default: PortfolioType.MANUAL,
+  })
+  type: PortfolioType;
 
   @Column({
     type: "enum",
@@ -43,6 +61,10 @@ export class Portfolio {
   // Total portfolio value
   @Column({ type: "decimal", precision: 18, scale: 2, default: 0 })
   totalValue: number;
+
+  // ROI calculation
+  @Column({ type: "decimal", precision: 10, scale: 4, nullable: true })
+  roi: number;
 
   // Current allocation in JSON format
   @Column({ type: "jsonb", default: {} })
@@ -72,6 +94,9 @@ export class Portfolio {
   @UpdateDateColumn()
   updatedAt: Date;
 
+  @DeleteDateColumn()
+  deletedAt: Date;
+
   @Column({ nullable: true })
   lastRebalanceDate: Date;
 
@@ -87,6 +112,11 @@ export class Portfolio {
     cascade: true,
   })
   assets: PortfolioAsset[];
+
+  @OneToMany(() => Transaction, (tx) => tx.portfolio, {
+    cascade: true,
+  })
+  transactions: Transaction[];
 
   @OneToMany(() => OptimizationHistory, (history) => history.portfolio, {
     cascade: true,

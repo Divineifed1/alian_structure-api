@@ -7,11 +7,13 @@ import {
   HttpCode,
   HttpStatus,
 } from "@nestjs/common";
+import { Public } from "../../common/decorators/public.decorator";
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiBody,
 } from "@nestjs/swagger";
 import { JwtAuthGuard } from "./jwt.guard";
 import { EnhancedAuthService } from "./enhanced-auth.service";
@@ -23,38 +25,22 @@ import {
 } from "./dto/kyc.dto";
 
 @ApiTags("Enhanced Authentication & KYC")
-@Controller("api/auth")
+@Controller("auth")
 export class EnhancedAuthController {
   constructor(
     private readonly enhancedAuthService: EnhancedAuthService,
   ) {}
 
+  @Public()
   @Post("register")
   @ApiOperation({
     summary: "Register a new user account",
     description: "Create a new user account with email and password authentication",
   })
+  @ApiBody({ type: RegisterDto })
   @ApiResponse({
     status: 201,
     description: "User registered successfully",
-    schema: {
-      type: "object",
-      properties: {
-        accessToken: { type: "string" },
-        refreshToken: { type: "string" },
-        user: {
-          type: "object",
-          properties: {
-            id: { type: "string" },
-            email: { type: "string" },
-            username: { type: "string" },
-            role: { type: "string" },
-            kycStatus: { type: "string" },
-          },
-        },
-        requiresTwoFactor: { type: "boolean" },
-      },
-    },
   })
   @ApiResponse({ status: 400, description: "Bad request" })
   @ApiResponse({ status: 409, description: "User already exists" })
@@ -69,33 +55,17 @@ export class EnhancedAuthController {
     );
   }
 
+  @Public()
   @Post("login")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: "Login with email and password",
     description: "Authenticate user with email and password, returns tokens",
   })
+  @ApiBody({ type: LoginDto })
   @ApiResponse({
     status: 200,
     description: "Login successful",
-    schema: {
-      type: "object",
-      properties: {
-        accessToken: { type: "string" },
-        refreshToken: { type: "string" },
-        user: {
-          type: "object",
-          properties: {
-            id: { type: "string" },
-            email: { type: "string" },
-            username: { type: "string" },
-            role: { type: "string" },
-            kycStatus: { type: "string" },
-          },
-        },
-        requiresTwoFactor: { type: "boolean" },
-      },
-    },
   })
   @ApiResponse({ status: 401, description: "Invalid credentials" })
   async login(
@@ -115,16 +85,10 @@ export class EnhancedAuthController {
     summary: "Refresh access token",
     description: "Exchange refresh token for new access token",
   })
+  @ApiBody({ type: RefreshTokenDto })
   @ApiResponse({
     status: 200,
     description: "Token refreshed successfully",
-    schema: {
-      type: "object",
-      properties: {
-        accessToken: { type: "string" },
-        refreshToken: { type: "string" },
-      },
-    },
   })
   @ApiResponse({ status: 401, description: "Invalid refresh token" })
   async refreshToken(@Body() refreshTokenDto: RefreshTokenDto, @Request() req) {

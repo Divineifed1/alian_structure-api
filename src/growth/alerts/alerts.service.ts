@@ -3,7 +3,9 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Alert, AlertType, AlertCondition } from "./entities/alert.entity";
 import { AlertTriggerLog } from "./entities/alert-trigger-log.entity";
+import { AlertPreference } from "./entities/alert-preference.entity";
 import { CreatePriceAlertDto, CreatePortfolioAlertDto } from "./dto/alert.dto";
+import { SubscribeAlertDto } from "./dto/alert-preference.dto";
 
 @Injectable()
 export class AlertsService {
@@ -12,6 +14,8 @@ export class AlertsService {
     private alertRepo: Repository<Alert>,
     @InjectRepository(AlertTriggerLog)
     private logRepo: Repository<AlertTriggerLog>,
+    @InjectRepository(AlertPreference)
+    private preferenceRepo: Repository<AlertPreference>,
   ) {}
 
   async createPriceAlert(dto: CreatePriceAlertDto): Promise<Alert> {
@@ -45,7 +49,7 @@ export class AlertsService {
 
   async deleteAlert(alertId: string): Promise<void> {
     const alert = await this.alertRepo.findOne({ where: { id: alertId } });
-    if (!alert) throw new NotFoundException(`Alert ${alertId} not found`);
+    if (!alert) throw new NotFoundException();
     alert.active = false;
     await this.alertRepo.save(alert);
   }
@@ -57,62 +61,50 @@ export class AlertsService {
     });
   }
 
-  /**
-   * Evaluate a price update against all active price alerts.
-   * Respects cooldown to prevent spam.
-   */
-  async evaluatePriceAlerts(
-    asset: string,
-    currentPrice: number,
-  ): Promise<AlertTriggerLog[]> {
-    const alerts = await this.alertRepo.find({
-      where: { type: AlertType.PRICE, asset, active: true },
-    });
-
+  async evaluatePriceAlerts(asset: string, currentPrice: number): Promise<AlertTriggerLog[]> {
+    const alerts = await this.alertRepo.find({ where: { type: AlertType.PRICE, asset, active: true } });
     const triggered: AlertTriggerLog[] = [];
-
     for (const alert of alerts) {
-      if (
-        !this.isConditionMet(alert.condition!, currentPrice, alert.threshold!)
-      ) {
-        continue;
-      }
-      if (!this.isCooldownElapsed(alert)) {
-        continue;
-      }
-
+      if (!this.isConditionMet(alert.condition!, currentPrice, alert.threshold!)) continue;
+      if (!this.isCooldownElapsed(alert)) continue;
       alert.lastTriggeredAt = new Date();
       await this.alertRepo.save(alert);
-
-      const log = this.logRepo.create({
-        alertId: alert.id,
-        userId: alert.userId,
-        payload: {
-          asset,
-          currentPrice,
-          threshold: alert.threshold,
-          condition: alert.condition,
-        },
-      });
+      const log = this.logRepo.create({ alertId: alert.id, userId: alert.userId, payload: { asset, currentPrice, threshold: alert.threshold, condition: alert.condition } });
       triggered.push(await this.logRepo.save(log));
     }
-
     return triggered;
   }
 
-  private isConditionMet(
-    condition: AlertCondition,
-    current: number,
-    threshold: number,
-  ): boolean {
-    return condition === AlertCondition.ABOVE
-      ? current > threshold
-      : current < threshold;
+  private isConditionMet(condition: AlertCondition, current: number, threshold: number): boolean {
+    return condition === AlertCondition.ABOVE ? current > threshold : current < threshold;
   }
 
   private isCooldownElapsed(alert: Alert): boolean {
     if (!alert.lastTriggeredAt) return true;
     const elapsed = (Date.now() - alert.lastTriggeredAt.getTime()) / 1000;
     return elapsed >= alert.cooldownSeconds;
+  }
+
+  async getPreference(userId: string): Promise<AlertPreference | null> {
+    return this.preferenceRepo.findOne({ where: { userId } });
+  }
+
+  async savePreference(dto: SubscribeAlertDto): Promise<AlertPreference> {
+    const existing = await this.preferenceRepo.findOne({ where: { userId: dto.userId } });
+    if (existing) {
+      existing.channels = dto.channels;
+      if (dto.quietHoursStart !== undefined) existing.quietHoursStart = dto.quietHoursStart;
+      if (dto.quietHoursEnd !== undefined) existing.quietHoursEnd = dto.quietHoursEnd;
+      if (dto.rateLimit !== undefined) existing.rateLimit = dto.rateLimit;
+      return this.preferenceRepo.save(existing);
+    }
+    const pref = this.preferenceRepo.create({ userId: dto.userId, channels: dto.channels, quietHoursStart: dto.quietHoursStart ?? null, quietHoursEnd: dto.quietHoursEnd ?? null, rateLimit: dto.rateLimit ?? 10 });
+    return this.preferenceRepo.save(pref);
+  }
+
+  async deletePreference(userId: string): Promise<void> {
+    const pref = await this.preferenceRepo.findOne({ where: { userId } });
+    if (!pref) throw new NotFoundException();
+    await this.preferenceRepo.remove(pref);
   }
 }

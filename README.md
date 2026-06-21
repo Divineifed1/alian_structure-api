@@ -1,10 +1,10 @@
 # alian_structure-api
 
-A robust NestJS-based off-chain services suite and API layer that powers the stellAIverse: secure, auditable, real-time backend services that complement on‑chain logic. Implemented with NestJS (Node.js + TypeScript) with optional Rust adapters for performance‑critical components.
+A robust NestJS-based off-chain services suite and API layer that powers the alian-structure: secure, auditable, real-time backend services that complement on‑chain logic. Implemented with NestJS (Node.js + TypeScript) with optional Rust adapters for performance‑critical components.
 
 Purpose
 -------
-Provide the off‑chain infrastructure required for agents, oracles, and operators to interact reliably with the stellAIverse blockchain ecosystem. This backend ensures off‑chain computation, telemetry, and decisioning are secure, verifiable, and low‑latency.
+Provide the off‑chain infrastructure required for agents, oracles, and operators to interact reliably with the alian-structure blockchain ecosystem. This backend ensures off‑chain computation, telemetry, and decisioning are secure, verifiable, and low‑latency.
 
 Core responsibilities
 ---------------------
@@ -54,7 +54,7 @@ Technical highlights
 Quick start (developer)
 -----------------------
 1. Clone the repo
-   git clone https://github.com/StellAIverse/stellAIverse-backend.git
+   git clone https://github.com/alian-structure/alian-structure-api.git
 
 2. Install dependencies
    npm install
@@ -103,7 +103,7 @@ Notes:
 
 Security
 --------
-**🔒 Security is a top priority for stellAIverse.**
+**🔒 Security is a top priority for alian-structure.**
 
 ### Security Features
 - ✅ Helmet security headers
@@ -119,7 +119,7 @@ Security
 
 ### Reporting Security Issues
 **DO NOT** create public issues for vulnerabilities.
-Email: **security@stellaiverse.com**
+Email: **security@alian-structure.com**
 
 See [SECURITY.md](SECURITY.md) for vulnerability reporting details.
 
@@ -178,7 +178,17 @@ Configuration & deployment
 - Use the simulator environment for safe, deterministic testing before enabling live on‑chain submission.
 - Run behind an API gateway for rate limiting and authentication; use TLS for all external endpoints.
 - Store signing keys in a KMS and follow key rotation practices.
+- Use Sentry for error tracking and performance monitoring in production.
 - **Security:** Complete `SECURITY_AUDIT.md` before production deployment.
+
+### Sentry configuration
+- `SENTRY_DSN` - Sentry project data source name.
+- `SENTRY_ENVIRONMENT` - Environment tag (`development`, `staging`, `production`).
+- `SENTRY_RELEASE` - Release version for deployment tracking.
+- `SENTRY_TRACES_SAMPLE_RATE` - Performance sampling rate (0.0 to 1.0).
+
+Operational notes
+-----------------
 
 Operational notes
 -----------------
