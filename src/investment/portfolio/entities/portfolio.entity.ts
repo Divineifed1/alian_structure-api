@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  DeleteDateColumn,
   Index,
   ManyToOne,
   OneToMany,
@@ -21,6 +22,26 @@ export enum PortfolioStatus {
   ARCHIVED = "archived",
 }
 
+export enum PortfolioType {
+  CONSERVATIVE = "conservative",
+  BALANCED = "balanced",
+  AGGRESSIVE = "aggressive",
+  INCOME = "income",
+  GROWTH = "growth",
+  RETIREMENT = "retirement",
+  CUSTOM = "custom",
+}
+
+export enum AllocationStrategy {
+  MANUAL = "manual",
+  MODERN_PORTFOLIO_THEORY = "modern_portfolio_theory",
+  BLACK_LITTERMAN = "black_litterman",
+  RISK_PARITY = "risk_parity",
+  MIN_VARIANCE = "min_variance",
+  MAX_SHARPE = "max_sharpe",
+  CUSTOM = "custom",
+}
+
 @Entity("portfolios")
 @Index(["userId", "status"])
 export class Portfolio {
@@ -29,6 +50,13 @@ export class Portfolio {
 
   @Column({ unique: true })
   name: string;
+
+  @Column({
+    type: "enum",
+    enum: PortfolioType,
+    default: PortfolioType.CUSTOM,
+  })
+  type: PortfolioType;
 
   @Column({ type: "text", nullable: true })
   description: string;
@@ -40,23 +68,24 @@ export class Portfolio {
   })
   status: PortfolioStatus;
 
-  // Total portfolio value
+  @Column({ type: "jsonb", default: {} })
+  initialAllocation: Record<string, number>;
+
+  @Column({ type: "enum", enum: AllocationStrategy, default: AllocationStrategy.MANUAL, nullable: true })
+  allocationStrategy: AllocationStrategy;
+
   @Column({ type: "decimal", precision: 18, scale: 2, default: 0 })
   totalValue: number;
 
-  // Current allocation in JSON format
   @Column({ type: "jsonb", default: {} })
   currentAllocation: Record<string, number>;
 
-  // Target allocation (from optimization)
   @Column({ type: "jsonb", nullable: true })
   targetAllocation: Record<string, number>;
 
-  // Portfolio metadata
   @Column({ type: "jsonb", nullable: true })
   metadata: Record<string, any>;
 
-  // Rebalancing configuration
   @Column({ type: "boolean", default: false })
   autoRebalanceEnabled: boolean;
 
@@ -64,7 +93,7 @@ export class Portfolio {
   rebalanceFrequency: "daily" | "weekly" | "monthly" | "quarterly" | null;
 
   @Column({ type: "decimal", precision: 5, scale: 2, default: 5 })
-  rebalanceThreshold: number; // Percentage threshold for rebalancing
+  rebalanceThreshold: number;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -72,10 +101,12 @@ export class Portfolio {
   @UpdateDateColumn()
   updatedAt: Date;
 
+  @DeleteDateColumn({ nullable: true })
+  deletedAt: Date;
+
   @Column({ nullable: true })
   lastRebalanceDate: Date;
 
-  // Relations
   @ManyToOne(() => User, { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user: User;

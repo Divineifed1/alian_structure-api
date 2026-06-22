@@ -1,19 +1,50 @@
-import { IsString, IsOptional, IsEnum, IsNumber, IsBoolean, IsJSON } from 'class-validator';
-import { PortfolioStatus } from '../entities/portfolio.entity';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsNumber,
+  IsBoolean,
+  IsObject,
+  Min,
+  Max,
+} from "class-validator";
+import {
+  PortfolioStatus,
+  PortfolioType,
+  AllocationStrategy,
+} from "../entities/portfolio.entity";
+
 export class CreatePortfolioDto {
   @IsString()
   name: string;
+
+  @IsOptional()
+  @IsEnum(PortfolioType)
+  type?: PortfolioType;
 
   @IsOptional()
   @IsString()
   description?: string;
 
   @IsOptional()
+  @IsObject()
+  initialAllocation?: Record<string, number>;
+
+  @IsOptional()
+  @IsObject()
+  targetAllocation?: Record<string, number>;
+
+  @IsOptional()
+  @IsEnum(AllocationStrategy)
+  allocationStrategy?: AllocationStrategy;
+
+  @IsOptional()
   @IsNumber()
+  @Min(0)
   totalValue?: number;
 
   @IsOptional()
-  @IsJSON()
+  @IsObject()
   metadata?: Record<string, any>;
 
   @IsOptional()
@@ -22,10 +53,12 @@ export class CreatePortfolioDto {
 
   @IsOptional()
   @IsString()
-  rebalanceFrequency?: 'daily' | 'weekly' | 'monthly' | 'quarterly';
+  rebalanceFrequency?: "daily" | "weekly" | "monthly" | "quarterly";
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
+  @Max(100)
   rebalanceThreshold?: number;
 }
 
@@ -33,6 +66,10 @@ export class UpdatePortfolioDto {
   @IsOptional()
   @IsString()
   name?: string;
+
+  @IsOptional()
+  @IsEnum(PortfolioType)
+  type?: PortfolioType;
 
   @IsOptional()
   @IsString()
@@ -43,30 +80,51 @@ export class UpdatePortfolioDto {
   status?: PortfolioStatus;
 
   @IsOptional()
+  @IsObject()
+  initialAllocation?: Record<string, number>;
+
+  @IsOptional()
+  @IsObject()
+  currentAllocation?: Record<string, number>;
+
+  @IsOptional()
+  @IsObject()
+  targetAllocation?: Record<string, number>;
+
+  @IsOptional()
+  @IsEnum(AllocationStrategy)
+  allocationStrategy?: AllocationStrategy;
+
+  @IsOptional()
   @IsBoolean()
   autoRebalanceEnabled?: boolean;
 
   @IsOptional()
   @IsString()
-  rebalanceFrequency?: 'daily' | 'weekly' | 'monthly' | 'quarterly';
+  rebalanceFrequency?: "daily" | "weekly" | "monthly" | "quarterly";
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
+  @Max(100)
   rebalanceThreshold?: number;
 
   @IsOptional()
-  @IsJSON()
+  @IsObject()
   metadata?: Record<string, any>;
 }
 
 export class PortfolioResponseDto {
   id: string;
   name: string;
+  type: PortfolioType;
   description?: string;
   status: PortfolioStatus;
-  totalValue: number;
+  initialAllocation: Record<string, number>;
   currentAllocation: Record<string, number>;
   targetAllocation?: Record<string, number>;
+  allocationStrategy?: AllocationStrategy;
+  totalValue: number;
   autoRebalanceEnabled: boolean;
   rebalanceFrequency?: string;
   rebalanceThreshold: number;
