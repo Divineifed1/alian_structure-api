@@ -86,13 +86,26 @@ export class TwoFactorAuth {
   secret: string;
 
   @Column({ nullable: true })
-  backupCodes: string; // JSON array of backup codes
+  backupCodes: string; // JSON array of SHA-256 hashed, single-use backup codes
 
   @Column({ nullable: true })
   phoneNumber: string;
 
   @Column({ default: false })
   isEnabled: boolean;
+
+  /**
+   * Number of consecutive failed verification attempts. Reset to 0 on success.
+   * Used to enforce account lockout after repeated failures.
+   */
+  @Column({ type: "int", default: 0 })
+  failedAttempts: number;
+
+  /**
+   * When set and in the future, 2FA verification is locked out until this time.
+   */
+  @Column({ type: "timestamp", nullable: true })
+  lockedUntil: Date | null;
 
   @Column({ type: "timestamp", nullable: true })
   verifiedAt: Date;
