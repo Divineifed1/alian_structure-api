@@ -18,6 +18,8 @@ import { RebalancingService } from "./services/rebalancing.service";
 import { PerformanceAnalyticsService } from "./services/performance-analytics.service";
 import { BacktestingService } from "./services/backtesting.service";
 import { MLPredictionService } from "./services/ml-prediction.service";
+import { PortfolioConstraintService } from "./services/portfolio-constraint.service";
+import { AuditLogService } from "../../infrastructure/audit/audit-log.service";
 import { TradingTransactionService } from "./services/trading-transaction.service";
 
 // Controllers
@@ -62,6 +64,8 @@ import { PortfolioOwnerGuard } from "./guards/portfolio-owner.guard";
     PerformanceAnalyticsService,
     BacktestingService,
     MLPredictionService,
+    PortfolioConstraintService,
+    AuditLogService,
     TradingTransactionService,
     PortfolioOwnerGuard,
   ],
@@ -73,6 +77,7 @@ import { PortfolioOwnerGuard } from "./guards/portfolio-owner.guard";
     PerformanceAnalyticsService,
     BacktestingService,
     MLPredictionService,
+    PortfolioConstraintService,
     TradingTransactionService,
   ],
 })

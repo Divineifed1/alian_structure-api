@@ -1,4 +1,11 @@
-import { IsString, IsOptional, IsNumber, IsEnum, Length } from "class-validator";
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsEnum,
+  Length,
+  IsBoolean,
+} from "class-validator";
 import { Chain, AssetType } from "../entities/portfolio-asset.entity";
 
 export class PortfolioAssetDto {
@@ -48,7 +55,21 @@ export class AddAssetToPortfolioDto {
   costBasis?: number;
 }
 
-export class AddHoldingDto {
+export class ConstraintOverrideDto {
+  @IsOptional()
+  @IsBoolean()
+  overrideConstraints?: boolean;
+
+  @IsOptional()
+  @IsString()
+  overrideReason?: string;
+
+  @IsOptional()
+  @IsString()
+  acknowledgedBy?: string;
+}
+
+export class AddHoldingDto extends ConstraintOverrideDto {
   @IsString()
   @Length(3, 10)
   ticker: string;
@@ -74,7 +95,7 @@ export class AddHoldingDto {
   costBasis: number;
 }
 
-export class UpdateHoldingDto {
+export class UpdateHoldingDto extends ConstraintOverrideDto {
   @IsOptional()
   @IsNumber()
   quantity?: number;

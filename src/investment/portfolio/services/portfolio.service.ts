@@ -2,7 +2,11 @@ import { Injectable, Logger, BadRequestException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Portfolio } from "../entities/portfolio.entity";
-import { PortfolioAsset, Chain, AssetType } from "../entities/portfolio-asset.entity";
+import {
+  PortfolioAsset,
+  Chain,
+  AssetType,
+} from "../entities/portfolio-asset.entity";
 import {
   OptimizationHistory,
   OptimizationMethod,
@@ -17,6 +21,8 @@ import { ModernPortfolioTheory } from "../algorithms/modern-portfolio-theory";
 import { BlackLittermanModel } from "../algorithms/black-litterman";
 import { ConstraintOptimizer } from "../algorithms/constraint-optimizer";
 import { PerformanceAnalyticsService } from "./performance-analytics.service";
+import { PortfolioConstraintService } from "./portfolio-constraint.service";
+import { AuditLogService } from "src/infrastructure/audit/audit-log.service";
 
 @Injectable()
 export class PortfolioService {
@@ -32,6 +38,8 @@ export class PortfolioService {
     @InjectRepository(RiskProfile)
     private riskProfileRepository: Repository<RiskProfile>,
     private performanceService: PerformanceAnalyticsService,
+    private portfolioConstraintService: PortfolioConstraintService,
+    private auditLogService: AuditLogService,
   ) {}
 
   /**
@@ -100,7 +108,7 @@ export class PortfolioService {
     portfolioId: string,
     dto: AddHoldingDto,
   ): Promise<PortfolioAsset> {
-    await this.getPortfolio(portfolioId);
+    const portfolio = await this.getPortfolio(portfolioId);
 
     // Check if holding already exists
     const existing = await this.portfolioAssetRepository.findOne({
@@ -108,7 +116,9 @@ export class PortfolioService {
     });
 
     if (existing) {
-      throw new BadRequestException("Holding with same ticker and chain already exists");
+      throw new BadRequestException(
+        "Holding with same ticker and chain already exists",
+      );
     }
 
     const holding = this.portfolioAssetRepository.create({
@@ -126,8 +136,16 @@ export class PortfolioService {
 
     // Calculate unrealized gain
     if (holding.currentPrice && holding.costBasisPerShare) {
-      holding.unrealizedGain = (holding.currentPrice - holding.costBasisPerShare) * holding.quantity;
+      holding.unrealizedGain =
+        (holding.currentPrice - holding.costBasisPerShare) * holding.quantity;
     }
+
+    await this.validatePortfolioConstraints(
+      portfolio,
+      [...(portfolio.assets || []), holding as PortfolioAsset],
+      dto,
+      "ADD_HOLDING",
+    );
 
     const saved = await this.portfolioAssetRepository.save(holding);
 
@@ -145,6 +163,8 @@ export class PortfolioService {
     holdingId: string,
     dto: UpdateHoldingDto,
   ): Promise<PortfolioAsset> {
+    const portfolio = await this.getPortfolio(portfolioId);
+
     const holding = await this.portfolioAssetRepository.findOne({
       where: { id: holdingId, portfolioId },
     });
@@ -162,7 +182,8 @@ export class PortfolioService {
     }
     if (dto.costBasis !== undefined) {
       holding.costBasis = dto.costBasis;
-      holding.costBasisPerShare = holding.quantity > 0 ? dto.costBasis / holding.quantity : 0;
+      holding.costBasisPerShare =
+        holding.quantity > 0 ? dto.costBasis / holding.quantity : 0;
     }
 
     // Recalculate value
@@ -170,8 +191,20 @@ export class PortfolioService {
 
     // Recalculate unrealized gain
     if (holding.currentPrice && holding.costBasisPerShare) {
-      holding.unrealizedGain = (holding.currentPrice - holding.costBasisPerShare) * holding.quantity;
+      holding.unrealizedGain =
+        (holding.currentPrice - holding.costBasisPerShare) * holding.quantity;
     }
+
+    const candidateAssets = (portfolio.assets || []).map((asset) =>
+      asset.id === holding.id ? Object.assign(asset, holding) : asset,
+    );
+
+    await this.validatePortfolioConstraints(
+      portfolio,
+      candidateAssets,
+      dto,
+      "UPDATE_HOLDING",
+    );
 
     const updated = await this.portfolioAssetRepository.save(holding);
 
@@ -184,10 +217,7 @@ export class PortfolioService {
   /**
    * Remove holding from portfolio
    */
-  async removeHolding(
-    portfolioId: string,
-    holdingId: string,
-  ): Promise<void> {
+  async removeHolding(portfolioId: string, holdingId: string): Promise<void> {
     const holding = await this.portfolioAssetRepository.findOne({
       where: { id: holdingId, portfolioId },
     });
@@ -244,7 +274,8 @@ export class PortfolioService {
 
     // Recalculate unrealized gain
     if (asset.costBasisPerShare) {
-      asset.unrealizedGain = (asset.currentPrice - asset.costBasisPerShare) * asset.quantity;
+      asset.unrealizedGain =
+        (asset.currentPrice - asset.costBasisPerShare) * asset.quantity;
     }
 
     const updated = await this.portfolioAssetRepository.save(asset);
@@ -266,7 +297,7 @@ export class PortfolioService {
 
     let totalValue = 0;
     for (const asset of assets) {
-      totalValue += asset.value || 0;
+      totalValue += Number(asset.value || 0);
     }
 
     portfolio.totalValue = totalValue;
@@ -274,7 +305,7 @@ export class PortfolioService {
     const allocation: Record<string, number> = {};
 
     for (const asset of assets) {
-      const percentage = totalValue > 0 ? (asset.value / totalValue) * 100 : 0;
+      const percentage = totalValue > 0 ? (Number(asset.value) / totalValue) * 100 : 0;
       asset.allocationPercentage = percentage;
       allocation[`${asset.ticker}-${asset.chain}`] = percentage;
     }
@@ -304,6 +335,37 @@ export class PortfolioService {
    */
   async updatePortfolioAllocation(portfolioId: string): Promise<void> {
     await this.updatePortfolioMetrics(portfolioId);
+  }
+
+  private async validatePortfolioConstraints(
+    portfolio: Portfolio,
+    assets: PortfolioAsset[],
+    override: any,
+    operation: string,
+  ): Promise<void> {
+    const evaluation =
+      this.portfolioConstraintService.evaluatePortfolio(portfolio, assets);
+
+    const overrideAccepted = Boolean(override?.overrideConstraints);
+
+    await this.auditLogService.recordVerification({
+      portfolioId: portfolio.id,
+      operation,
+      valid: evaluation.valid,
+      riskScore: evaluation.riskScore,
+      violations: evaluation.violations,
+      warnings: evaluation.warnings,
+      overrideAccepted,
+      overrideReason: override?.overrideReason,
+      acknowledgedBy: override?.acknowledgedBy,
+      timestamp: new Date().toISOString(),
+    });
+
+    if (!evaluation.valid && !overrideAccepted) {
+      throw new BadRequestException(
+        evaluation.violations.map((v) => v.message).join(" "),
+      );
+    }
   }
 
   /**
@@ -394,10 +456,6 @@ export class PortfolioService {
         expectedReturns,
         covarianceMatrix,
       );
-
-      // Calculate improvement score
-      const currentReturn = 0;
-      const currentVolatility = 0;
 
       const currentWeights = assets.map(
         (a) => (a.allocationPercentage || 0) / 100,
