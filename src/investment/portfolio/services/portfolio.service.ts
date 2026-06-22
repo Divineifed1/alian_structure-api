@@ -434,7 +434,9 @@ export class PortfolioService {
 
       return result;
     } catch (error) {
-      this.logger.error(`Optimization failed: ${error.message}`);
+      const err = error as any;
+      this.logger.error(`Optimization failed: ${err?.message ?? String(error)}`);
+
       result.status = OptimizationStatus.FAILED;
       result.errorMessage = error.message;
       await this.optimizationRepository.save(result);
@@ -525,9 +527,29 @@ export class PortfolioService {
   }
 
   /**
-   * Delete portfolio
+   * Archive portfolio (logical delete)
+   */
+  async archivePortfolio(
+    portfolioId: string,
+    status: PortfolioStatus = PortfolioStatus.ARCHIVED,
+  ): Promise<Portfolio> {
+    const portfolio = await this.portfolioRepository.findOne({
+      where: { id: portfolioId },
+    });
+
+    if (!portfolio) {
+      throw new BadRequestException("Portfolio not found");
+    }
+
+    portfolio.status = status;
+    return this.portfolioRepository.save(portfolio);
+  }
+
+  /**
+   * Delete portfolio (physical delete)
    */
   async deletePortfolio(portfolioId: string): Promise<void> {
     await this.portfolioRepository.delete(portfolioId);
   }
 }
+

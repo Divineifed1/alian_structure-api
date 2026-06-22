@@ -1,9 +1,8 @@
-
 import { Injectable } from "@nestjs/common";
 import { PerformanceAnalyticsService } from "src/investment/portfolio/services/performance-analytics.service";
 import { PortfolioService } from "src/investment/portfolio/services/portfolio.service";
 import { RiskManagementService } from "src/investment/risk-management/risk-management.service";
-import { TimeRange } from "./dto/dashboard.dto";
+import { TimeRange as PortfolioTimeRange } from "src/investment/portfolio/dto/performance.dto";
 
 @Injectable()
 export class DashboardService {
@@ -13,7 +12,7 @@ export class DashboardService {
     private readonly riskService: RiskManagementService,
   ) {}
 
-  async getSummary(portfolioId: string, timeRange: TimeRange = TimeRange.ONE_YEAR) {
+  async getSummary(portfolioId: string, timeRange: PortfolioTimeRange = PortfolioTimeRange.ONE_YEAR) {
     const [
       totalValue,
       performance,
@@ -26,13 +25,13 @@ export class DashboardService {
 
     return {
       totalValue: totalValue.totalValue,
-      change: performance.valueChange,
-      changePercent: performance.percentageChange,
+      change: performance.returnPercentage,
+      changePercent: performance.returnPercentage,
       allocation,
     };
   }
 
-  async getPerformanceHistory(portfolioId: string, timeRange: TimeRange = TimeRange.ONE_YEAR) {
+  async getPerformanceHistory(portfolioId: string, timeRange: PortfolioTimeRange = PortfolioTimeRange.ONE_YEAR) {
     return this.performanceService.getPerformanceHistory(portfolioId, timeRange);
   }
 

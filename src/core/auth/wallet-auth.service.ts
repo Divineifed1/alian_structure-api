@@ -11,6 +11,8 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, Not } from "typeorm";
 import { verifyMessage } from "ethers";
 import { ChallengeService } from "./challenge.service";
+import { EnhancedAuthService } from "./enhanced-auth.service";
+import { TwoFactorVerifyDto } from "./dto/auth.dto";
 import { User } from "../user/entities/user.entity";
 import { Wallet, WalletStatus, WalletType } from "./entities/wallet.entity";
 import { ConfigService } from "@nestjs/config";
@@ -23,6 +25,7 @@ export interface AuthPayload {
   email?: string;
   role?: string;
   roles?: string[];
+  twoFactorVerified?: boolean;
   iat: number;
 }
 
@@ -33,6 +36,7 @@ export class WalletAuthService {
   constructor(
     private challengeService: ChallengeService,
     private jwtService: JwtService,
+    private readonly enhancedAuthService: EnhancedAuthService,
     @InjectRepository(User)
     private userRepository: Repository<User>,
     @InjectRepository(Wallet)
@@ -43,7 +47,11 @@ export class WalletAuthService {
   ) {}
 
   /**
-   * Verify a signed message and return JWT token if valid
+   * Verify a signed message and return a JWT token if valid.
+   *
+   * When the owning account has 2FA enabled, no token is issued: instead
+   * `requiresTwoFactor` and the `userId` are returned, and the client must call
+   * {@link verifyWalletTwoFactorAndIssueToken} with a TOTP/backup code.
    */
   async verifySignatureAndIssueToken(
     message: string,
@@ -141,6 +149,43 @@ export class WalletAuthService {
 
       throw err;
     }
+  }
+
+  /**
+   * Complete wallet login for a 2FA-enabled account by verifying the supplied
+   * TOTP or backup code, then issuing a fully 2FA-verified wallet token.
+   */
+  async verifyWalletTwoFactorAndIssueToken(
+    userId: string,
+    verifyDto: TwoFactorVerifyDto,
+  ): Promise<{ token: string; address: string }> {
+    // Throws on lockout / invalid code.
+    await this.enhancedAuthService.verifyTwoFactorCode(userId, verifyDto);
+
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    const token = this.issueWalletToken(user.walletAddress, user, true);
+
+    return { token, address: user.walletAddress };
+  }
+
+  private issueWalletToken(
+    address: string,
+    user: User | null,
+    twoFactorVerified: boolean,
+  ): string {
+    const payload: AuthPayload = {
+      address: address.toLowerCase(),
+      email: user?.emailVerified ? user.email : undefined,
+      role: user?.role || "user",
+      twoFactorVerified,
+      iat: Math.floor(Date.now() / 1000),
+    };
+
+    return this.jwtService.sign(payload);
   }
 
   /**
@@ -397,7 +442,12 @@ export class WalletAuthService {
     console.log("activeWallets.length", activeWallets.length);
     if (activeWallets.length === 1) {
       const user = await this.userRepository.findOne({ where: { id: userId } });
-      console.log("user.emailVerified", user?.emailVerified, "user.email", user?.email);
+      console.log(
+        "user.emailVerified",
+        user?.emailVerified,
+        "user.email",
+        user?.email,
+      );
       if (!user || !user.email || !user.emailVerified) {
         throw new BadRequestException(
           "Cannot unlink your only wallet without verified email for recovery",
