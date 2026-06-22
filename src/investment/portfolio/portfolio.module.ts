@@ -21,7 +21,9 @@ import { MLPredictionService } from "./services/ml-prediction.service";
 
 // Controllers
 import { PortfolioController } from "./portfolio.controller";
+import { PortfolioManagementController } from "./portfolio-management.controller";
 import { PortfolioOwnerGuard } from "./guards/portfolio-owner.guard";
+
 
 @Module({
   imports: [
@@ -61,7 +63,8 @@ import { PortfolioOwnerGuard } from "./guards/portfolio-owner.guard";
     MLPredictionService,
     PortfolioOwnerGuard,
   ],
-  controllers: [PortfolioController],
+  controllers: [PortfolioController, PortfolioManagementController],
+
   exports: [
     PortfolioService,
     RebalancingService,
