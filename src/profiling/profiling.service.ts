@@ -11,7 +11,7 @@ import { register } from "../config/metrics";
 
 const execAsync = promisify(exec);
 
-interface ProfileMetadata {
+export interface ProfileMetadata {
   id: string;
   type: "cpu" | "heap" | "timeline";
   startTime: Date;
@@ -21,7 +21,7 @@ interface ProfileMetadata {
   status: "active" | "completed" | "failed";
 }
 
-interface HotFunction {
+export interface HotFunction {
   name: string;
   selfTime: number;
   totalTime: number;

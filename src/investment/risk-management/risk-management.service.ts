@@ -33,10 +33,8 @@ export class RiskManagementService {
   }
 
   async calculateRiskScore(portfolioId: string): Promise<number> {
-    // This is a placeholder implementation. In a real-world scenario,
-    // you would fetch the portfolio and its assets, calculate the
-    // necessary metrics (VaR, max drawdown, etc.), and then call
-    // the private calculateRiskScore method.
+    // This is kept for backward compatibility with dashboard.service.ts
+    // In a real implementation, you would fetch the portfolio's metrics and call the private method
     return Math.random() * 100;
   }
 
@@ -61,7 +59,7 @@ export class RiskManagementService {
     const maxDrawdown = this.calculateMaxDrawdown(positions);
     const currentDrawdown = this.calculateCurrentDrawdown(positions);
     const diversificationScore = this.calculateDiversificationScore(weights);
-    const riskScore = this.calculateRiskScore(
+    const riskScore = this.calculateRiskScoreInternal(
       var95,
       totalValue,
       maxDrawdown,
@@ -209,7 +207,7 @@ export class RiskManagementService {
     return 1 - hhi;
   }
 
-  private calculateRiskScore(
+  private calculateRiskScoreInternal(
     var95: number,
     totalValue: number,
     maxDrawdown: number,

@@ -13,7 +13,7 @@ import {
 import { Response } from "express";
 import * as fs from "fs";
 import * as path from "path";
-import { ProfilingService } from "./profiling.service";
+import { ProfilingService, ProfileMetadata, HotFunction } from "./profiling.service";
 import { RolesGuard } from "../common/guard/roles.guard";
 import { Role } from "../common/guard/roles.enum";
 import { Public } from "../common/decorators/public.decorator";
@@ -44,7 +44,7 @@ export class ProfilingController {
    * List all available profiles
    */
   @Get("profiles")
-  listProfiles() {
+  listProfiles(): ProfileMetadata[] {
     return this.profilingService.listProfiles();
   }
 
@@ -80,7 +80,7 @@ export class ProfilingController {
    * Get hot functions identified by the profiler
    */
   @Get("hot-functions")
-  getHotFunctions() {
+  getHotFunctions(): HotFunction[] {
     return this.profilingService.getHotFunctions();
   }
 

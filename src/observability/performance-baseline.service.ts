@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { register, Histogram, Gauge } from 'prom-client';
 
-interface BaselineMetric {
+export interface BaselineMetric {
   route: string;
   method: string;
   p50: number;
@@ -11,7 +11,7 @@ interface BaselineMetric {
   lastUpdated: Date;
 }
 
-interface RegressionDetection {
+export interface RegressionDetection {
   route: string;
   method: string;
   currentDuration: number;

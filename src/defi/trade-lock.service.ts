@@ -1,6 +1,6 @@
 import { Injectable, Logger, ConflictException, BadRequestException } from '@nestjs/common';
 
-interface TradeRequest {
+export interface TradeRequest {
   idempotencyKey: string;
   userId: string;
   asset: string;
@@ -8,7 +8,7 @@ interface TradeRequest {
   side: 'buy' | 'sell';
 }
 
-interface TradeResult {
+export interface TradeResult {
   tradeId: string;
   idempotencyKey: string;
   userId: string;
