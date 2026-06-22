@@ -15,6 +15,7 @@ import { EmailLinkingService } from "./email-linking.service";
 import { RecoveryService } from "./recovery.service";
 import { SessionRecoveryService } from "./session-recovery.service";
 import { DelegationService } from "./delegation.service";
+import { AuditModule } from "../../infrastructure/audit/audit.module";
 import { StrategyAuthService } from "./strategy-auth.service";
 import { StrategyRegistry } from "./strategies/strategy.registry";
 import { WalletStrategy } from "./strategies/wallet/wallet.strategy";
@@ -22,6 +23,7 @@ import { TraditionalStrategy } from "./strategies/traditional/traditional.strate
 import { OAuthStrategy } from "./strategies/oauth/oauth.strategy";
 import { ApiKeyStrategy } from "./strategies/api-key/api-key.strategy";
 import { StrategyAuthGuard } from "./guards/strategy-auth.guard";
+import { AdminTwoFactorGuard } from "./guards/admin-two-factor.guard";
 import { TokenBlacklistService } from "./token-blacklist.service";
 import { User } from "../user/entities/user.entity";
 import { EmailVerification } from "./entities/email-verification.entity";
@@ -67,6 +69,7 @@ import { RefreshToken, TwoFactorAuth } from "./entities/auth.entity";
       }),
     }),
     TypeOrmModule.forFeature([User, EmailVerification, Wallet, RefreshToken, TwoFactorAuth]),
+    AuditModule,
   ],
   controllers: [AuthController],
   providers: [
@@ -92,6 +95,7 @@ import { RefreshToken, TwoFactorAuth } from "./entities/auth.entity";
     OAuthStrategy,
     ApiKeyStrategy,
     StrategyAuthGuard,
+    AdminTwoFactorGuard,
   ],
   exports: [
     // Legacy exports

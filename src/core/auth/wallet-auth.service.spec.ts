@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { WalletAuthService } from "./wallet-auth.service";
 import { ChallengeService } from "./challenge.service";
+import { EnhancedAuthService } from "./enhanced-auth.service";
 import { JwtService } from "@nestjs/jwt";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { User, UserRole, KycStatus } from "../user/entities/user.entity";
@@ -107,6 +108,11 @@ describe("WalletAuthService", () => {
     verify: jest.fn(),
   };
 
+  const mockEnhancedAuthService = {
+    isTwoFactorEnabled: jest.fn().mockResolvedValue(false),
+    verifyTwoFactorCode: jest.fn().mockResolvedValue(undefined),
+  };
+
   const mockUserRepository = {
     findOne: jest.fn(),
     save: jest.fn(),
@@ -144,6 +150,10 @@ describe("WalletAuthService", () => {
         {
           provide: JwtService,
           useValue: mockJwtService,
+        },
+        {
+          provide: EnhancedAuthService,
+          useValue: mockEnhancedAuthService,
         },
         {
           provide: getRepositoryToken(User),
