@@ -15,6 +15,7 @@ import { EmailLinkingService } from "./email-linking.service";
 import { RecoveryService } from "./recovery.service";
 import { SessionRecoveryService } from "./session-recovery.service";
 import { DelegationService } from "./delegation.service";
+import { AuditModule } from "../../infrastructure/audit/audit.module";
 import { StrategyAuthService } from "./strategy-auth.service";
 import { StrategyRegistry } from "./strategies/strategy.registry";
 import { WalletStrategy } from "./strategies/wallet/wallet.strategy";
@@ -68,6 +69,7 @@ import { RefreshToken, TwoFactorAuth } from "./entities/auth.entity";
       }),
     }),
     TypeOrmModule.forFeature([User, EmailVerification, Wallet, RefreshToken, TwoFactorAuth]),
+    AuditModule,
   ],
   controllers: [AuthController],
   providers: [
