@@ -22,7 +22,9 @@ import { TradingTransactionService } from "./services/trading-transaction.servic
 
 // Controllers
 import { PortfolioController } from "./portfolio.controller";
+import { PortfolioManagementController } from "./portfolio-management.controller";
 import { PortfolioOwnerGuard } from "./guards/portfolio-owner.guard";
+
 
 @Module({
   imports: [
@@ -63,7 +65,8 @@ import { PortfolioOwnerGuard } from "./guards/portfolio-owner.guard";
     TradingTransactionService,
     PortfolioOwnerGuard,
   ],
-  controllers: [PortfolioController],
+  controllers: [PortfolioController, PortfolioManagementController],
+
   exports: [
     PortfolioService,
     RebalancingService,

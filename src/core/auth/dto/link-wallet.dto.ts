@@ -36,4 +36,11 @@ export class LinkWalletDto {
   @IsOptional()
   @IsString()
   walletName?: string;
+
+  @ApiPropertyOptional({
+    description: "Optional permissions for the wallet (delegation/role)",
+    example: ["authenticate", "read_data"],
+  })
+  @IsOptional()
+  permissions?: string[];
 }

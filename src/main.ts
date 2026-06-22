@@ -96,6 +96,9 @@ async function bootstrap() {
     logger.info(
       `📚 API Documentation available at http://localhost:${port}/api/docs`,
     );
+    logger.info(
+      `🔌 WebSocket endpoint available at ws://localhost:${port}/api/v1/dashboard`,
+    );
   } catch (listenError) {
     logger.error({ error: listenError, stack: listenError.stack }, "First listen attempt failed (full error details)");
     logger.error({ error: listenError }, "Failed to start server completely, but Swagger UI is still available");
@@ -104,6 +107,9 @@ async function bootstrap() {
     logger.info(`🚀 Application running on http://localhost:${port}/api/v1`);
     logger.info(
       `📚 Swagger UI successfully available at http://localhost:${port}/api/docs`,
+    );
+    logger.info(
+      `🔌 WebSocket endpoint available at ws://localhost:${port}/api/v1/dashboard`,
     );
   }
 }
