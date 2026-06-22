@@ -8,7 +8,7 @@ import {
   ManyToOne,
   JoinColumn,
 } from "typeorm";
-import { User } from "../../user/entities/user.entity";
+import { User } from "src/core/user/entities/user.entity";
 
 export enum WalletStatus {
   ACTIVE = "active",
@@ -165,3 +165,6 @@ export class Wallet {
   @UpdateDateColumn()
   updatedAt: Date;
 }
+
+
+

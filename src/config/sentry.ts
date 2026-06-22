@@ -1,17 +1,21 @@
 import * as Sentry from "@sentry/node";
-import { 
-  httpIntegration, 
-  onUncaughtExceptionIntegration, 
+import {
+  httpIntegration,
+  onUncaughtExceptionIntegration,
   onUnhandledRejectionIntegration,
   expressIntegration,
-  getDefaultIntegrations
+  getDefaultIntegrations,
 } from "@sentry/node";
 import { logger } from "./logger";
 
 const dsn = process.env.SENTRY_DSN;
-const environment = process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV || "development";
-const release = process.env.SENTRY_RELEASE || process.env.npm_package_version || "unknown";
-const tracesSampleRate = parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE ?? "0.1");
+const environment =
+  process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV || "development";
+const release =
+  process.env.SENTRY_RELEASE || process.env.npm_package_version || "unknown";
+const tracesSampleRate = parseFloat(
+  process.env.SENTRY_TRACES_SAMPLE_RATE ?? "0.1",
+);
 
 export const initSentry = () => {
   if (!dsn) {
@@ -23,7 +27,9 @@ export const initSentry = () => {
     dsn,
     environment,
     release,
-    tracesSampleRate: Number.isFinite(tracesSampleRate) ? tracesSampleRate : 0.1,
+    tracesSampleRate: Number.isFinite(tracesSampleRate)
+      ? tracesSampleRate
+      : 0.1,
     integrations: [
       ...getDefaultIntegrations({}),
       expressIntegration(),
@@ -66,3 +72,6 @@ export const addBreadcrumb = (breadcrumb: Sentry.Breadcrumb) => {
     Sentry.addBreadcrumb(breadcrumb);
   }
 };
+
+
+

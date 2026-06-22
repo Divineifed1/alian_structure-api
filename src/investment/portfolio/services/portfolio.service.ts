@@ -305,7 +305,8 @@ export class PortfolioService {
     const allocation: Record<string, number> = {};
 
     for (const asset of assets) {
-      const percentage = totalValue > 0 ? (Number(asset.value) / totalValue) * 100 : 0;
+      const percentage =
+        totalValue > 0 ? (Number(asset.value) / totalValue) * 100 : 0;
       asset.allocationPercentage = percentage;
       allocation[`${asset.ticker}-${asset.chain}`] = percentage;
     }
@@ -343,8 +344,10 @@ export class PortfolioService {
     override: any,
     operation: string,
   ): Promise<void> {
-    const evaluation =
-      this.portfolioConstraintService.evaluatePortfolio(portfolio, assets);
+    const evaluation = this.portfolioConstraintService.evaluatePortfolio(
+      portfolio,
+      assets,
+    );
 
     const overrideAccepted = Boolean(override?.overrideConstraints);
 
@@ -493,7 +496,9 @@ export class PortfolioService {
       return result;
     } catch (error) {
       const err = error as any;
-      this.logger.error(`Optimization failed: ${err?.message ?? String(error)}`);
+      this.logger.error(
+        `Optimization failed: ${err?.message ?? String(error)}`,
+      );
 
       result.status = OptimizationStatus.FAILED;
       result.errorMessage = error.message;
@@ -630,3 +635,6 @@ export class PortfolioService {
     await this.portfolioRepository.delete(portfolioId);
   }
 }
+
+
+

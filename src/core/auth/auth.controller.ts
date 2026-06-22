@@ -34,10 +34,10 @@ import { LinkWalletDto } from "./dto/link-wallet.dto";
 import { UnlinkWalletDto } from "./dto/unlink-wallet.dto";
 import { RecoverWalletDto } from "./dto/recover-wallet.dto";
 import { Throttle } from "@nestjs/throttler";
-import { SensitiveRateLimit } from "../../common/decorators/rate-limit.decorator";
-import { Roles, Role } from "../../common/decorators/roles.decorator";
-import { RolesGuard } from "../../common/guard/roles.guard";
-import { Public } from "../../common/decorators/public.decorator";
+import { SensitiveRateLimit } from "src/common/decorators/rate-limit.decorator";
+import { Roles, Role } from "src/common/decorators/roles.decorator";
+import { RolesGuard } from "src/common/guard/roles.guard";
+import { Public } from "src/common/decorators/public.decorator";
 import { AdminTwoFactorGuard } from "./guards/admin-two-factor.guard";
 
 export class RequestChallengeDto {
@@ -135,10 +135,10 @@ export class AuthController {
       "via POST /auth/verify-2fa.",
   })
   async verifySignature(@Body() dto: VerifySignatureDto) {
-    const result = await this.walletAuthService.verifySignatureAndIssueToken(
+    const result = (await this.walletAuthService.verifySignatureAndIssueToken(
       dto.message,
       dto.signature,
-    ) as {
+    )) as {
       token?: string;
       address: string;
       requiresTwoFactor?: boolean;
@@ -437,13 +437,21 @@ export class AuthController {
   @Post("register")
   @ApiOperation({ summary: "Register with email and password" })
   async register(@Body() dto: RegisterDto, @Request() req) {
-    return this.enhancedAuthService.register(dto, req.ip, req.headers["user-agent"]);
+    return this.enhancedAuthService.register(
+      dto,
+      req.ip,
+      req.headers["user-agent"],
+    );
   }
 
   @Post("login")
   @ApiOperation({ summary: "Login with email and password" })
   async login(@Body() dto: LoginDto, @Request() req) {
-    return this.enhancedAuthService.login(dto, req.ip, req.headers["user-agent"]);
+    return this.enhancedAuthService.login(
+      dto,
+      req.ip,
+      req.headers["user-agent"],
+    );
   }
 
   @Post("logout")
@@ -482,3 +490,6 @@ export class AuthController {
     };
   }
 }
+
+
+

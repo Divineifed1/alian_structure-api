@@ -14,7 +14,9 @@ const h = (
 describe("PortfolioValidation", () => {
   describe("totalValue", () => {
     it("sums positive holding values", () => {
-      expect(PortfolioValidation.totalValue([h("A", 100), h("B", 50)])).toBe(150);
+      expect(PortfolioValidation.totalValue([h("A", 100), h("B", 50)])).toBe(
+        150,
+      );
     });
     it("returns 0 for an empty portfolio", () => {
       expect(PortfolioValidation.totalValue([])).toBe(0);
@@ -98,16 +100,16 @@ describe("PortfolioValidation", () => {
         h("B", 33, "y"),
         h("C", 33, "z"),
       ]);
-      expect(r.issues.find((i) => i.rule === "maxAssetAllocation")).toBeUndefined();
+      expect(
+        r.issues.find((i) => i.rule === "maxAssetAllocation"),
+      ).toBeUndefined();
     });
     it("honors a configurable per-asset limit", () => {
       const r = PortfolioValidation.validate(
         [h("A", 34, "x"), h("B", 33, "y"), h("C", 33, "z")],
         { maxAssetAllocationPct: 30 },
       );
-      expect(
-        r.issues.some((i) => i.rule === "maxAssetAllocation"),
-      ).toBe(true);
+      expect(r.issues.some((i) => i.rule === "maxAssetAllocation")).toBe(true);
     });
   });
 
@@ -126,7 +128,10 @@ describe("PortfolioValidation", () => {
 
   describe("validate — minimum diversification", () => {
     it("warns (not blocks) when below the minimum asset count", () => {
-      const r = PortfolioValidation.validate([h("A", 60, "x"), h("B", 40, "y")]);
+      const r = PortfolioValidation.validate([
+        h("A", 60, "x"),
+        h("B", 40, "y"),
+      ]);
       const issue = r.issues.find((i) => i.rule === "minDiversification");
       expect(issue).toBeDefined();
       expect(issue!.severity).toBe(ViolationSeverity.WARNING);
@@ -145,9 +150,12 @@ describe("PortfolioValidation", () => {
 
   describe("validate — risk score limit", () => {
     it("flags a portfolio whose risk score exceeds the limit", () => {
-      const r = PortfolioValidation.validate([h("A", 95, "x"), h("B", 5, "y")], {
-        maxRiskScore: 50,
-      });
+      const r = PortfolioValidation.validate(
+        [h("A", 95, "x"), h("B", 5, "y")],
+        {
+          maxRiskScore: 50,
+        },
+      );
       expect(r.issues.some((i) => i.rule === "maxRiskScore")).toBe(true);
     });
   });
@@ -164,13 +172,19 @@ describe("PortfolioValidation", () => {
     });
     it("merges into an existing ticker rather than duplicating", () => {
       const current = [h("A", 30, "x"), h("B", 35, "y"), h("C", 35, "z")];
-      const r = PortfolioValidation.validateNewHolding(current, h("A", 100, "x"));
+      const r = PortfolioValidation.validateNewHolding(
+        current,
+        h("A", 100, "x"),
+      );
       expect(Object.keys(r.allocations)).toHaveLength(3);
       expect(r.allocations["A"]).toBeGreaterThan(30);
     });
     it("allows a well-sized new holding", () => {
       const current = [h("A", 30, "x"), h("B", 30, "y")];
-      const r = PortfolioValidation.validateNewHolding(current, h("C", 30, "z"));
+      const r = PortfolioValidation.validateNewHolding(
+        current,
+        h("C", 30, "z"),
+      );
       expect(r.valid).toBe(true);
     });
   });
@@ -216,3 +230,6 @@ describe("PortfolioValidation", () => {
     });
   });
 });
+
+
+

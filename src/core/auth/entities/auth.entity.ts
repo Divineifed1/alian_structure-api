@@ -8,7 +8,7 @@ import {
   JoinColumn,
   Index,
 } from "typeorm";
-import { User } from "../../user/entities/user.entity";
+import { User } from "src/core/user/entities/user.entity";
 
 @Entity("refresh_tokens")
 export class RefreshToken {
@@ -119,3 +119,6 @@ export class TwoFactorAuth {
   @UpdateDateColumn()
   updatedAt: Date;
 }
+
+
+

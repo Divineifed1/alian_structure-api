@@ -4,29 +4,29 @@ export enum DashboardEvent {
   CONNECTION_ESTABLISHED = "connection:established",
   CONNECTION_STALE = "connection:stale",
   RECONNECTION_SUCCESS = "reconnection:success",
-  
+
   // Heartbeat events
   HEARTBEAT = "heartbeat",
   PING = "ping",
   PONG = "pong",
-  
+
   // Subscription events
   SUBSCRIBE_PORTFOLIO = "portfolio:subscribe",
   SUBSCRIPTION_CONFIRMED = "portfolio:subscription:confirmed",
   UNSUBSCRIBE_PORTFOLIO = "portfolio:unsubscribe",
   UNSUBSCRIPTION_CONFIRMED = "portfolio:unsubscription:confirmed",
-  
+
   // Data events
   PORTFOLIO_UPDATE = "portfolio:update",
   PERFORMANCE_UPDATE = "portfolio:performance:update",
   ALLOCATION_UPDATE = "portfolio:allocation:update",
   RISK_UPDATE = "portfolio:risk:update",
   HOLDINGS_UPDATE = "portfolio:holdings:update",
-  
+
   // Replay events
   REPLAY_EVENTS = "events:replay",
   EVENTS_REPLAYED = "events:replayed",
-  
+
   // Error events
   ERROR = "error",
 }
@@ -144,15 +144,18 @@ export interface HealthCheckResult {
 
 // Reconnection configuration
 export interface ReconnectionConfig {
-  maxDelay: number;       // Maximum delay in ms (30 seconds as per requirement)
-  baseDelay: number;      // Base delay in ms
-  maxAttempts: number;    // Maximum reconnection attempts
-  factor: number;         // Backoff multiplier
+  maxDelay: number; // Maximum delay in ms (30 seconds as per requirement)
+  baseDelay: number; // Base delay in ms
+  maxAttempts: number; // Maximum reconnection attempts
+  factor: number; // Backoff multiplier
 }
 
 // Event buffer configuration
 export interface EventBufferConfig {
-  maxEvents: number;      // Maximum events to buffer per user
-  maxAge: number;         // Maximum age of buffered events in ms
-  flushInterval: number;  // Interval to check for expired buffers
+  maxEvents: number; // Maximum events to buffer per user
+  maxAge: number; // Maximum age of buffered events in ms
+  flushInterval: number; // Interval to check for expired buffers
 }
+
+
+

@@ -6,7 +6,7 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { SubmissionNonce } from "../../blockchain/oracle/entities/submission-nonce.entity";
+import { SubmissionNonce } from "src/blockchain/oracle/entities/submission-nonce.entity";
 import { Repository } from "typeorm";
 
 /**
@@ -56,3 +56,6 @@ export class NonceGuard implements CanActivate {
     return true;
   }
 }
+
+
+

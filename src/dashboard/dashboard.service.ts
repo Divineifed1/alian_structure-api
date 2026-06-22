@@ -12,12 +12,11 @@ export class DashboardService {
     private readonly riskService: RiskManagementService,
   ) {}
 
-  async getSummary(portfolioId: string, timeRange: PortfolioTimeRange = PortfolioTimeRange.ONE_YEAR) {
-    const [
-      totalValue,
-      performance,
-      allocation,
-    ] = await Promise.all([
+  async getSummary(
+    portfolioId: string,
+    timeRange: PortfolioTimeRange = PortfolioTimeRange.ONE_YEAR,
+  ) {
+    const [totalValue, performance, allocation] = await Promise.all([
       this.performanceService.getPortfolioValue(portfolioId),
       this.performanceService.getPortfolioPerformance(portfolioId, timeRange),
       this.performanceService.getPortfolioAllocation(portfolioId),
@@ -31,8 +30,14 @@ export class DashboardService {
     };
   }
 
-  async getPerformanceHistory(portfolioId: string, timeRange: PortfolioTimeRange = PortfolioTimeRange.ONE_YEAR) {
-    return this.performanceService.getPerformanceHistory(portfolioId, timeRange);
+  async getPerformanceHistory(
+    portfolioId: string,
+    timeRange: PortfolioTimeRange = PortfolioTimeRange.ONE_YEAR,
+  ) {
+    return this.performanceService.getPerformanceHistory(
+      portfolioId,
+      timeRange,
+    );
   }
 
   async getAllocation(portfolioId: string) {
@@ -48,13 +53,15 @@ export class DashboardService {
     const portfolio = await this.portfolioService.getPortfolio(portfolioId);
     const assets = portfolio.assets || [];
 
-    const withPerformance = assets.map(asset => {
+    const withPerformance = assets.map((asset) => {
       const change = asset.currentPrice - asset.costBasis;
       const changePercent = (change / asset.costBasis) * 100;
       return { ...asset, change, changePercent };
     });
 
-    const sorted = withPerformance.sort((a, b) => b.changePercent - a.changePercent);
+    const sorted = withPerformance.sort(
+      (a, b) => b.changePercent - a.changePercent,
+    );
 
     return {
       top: sorted.slice(0, 5),
@@ -63,10 +70,7 @@ export class DashboardService {
   }
 
   async getHealth(portfolioId: string) {
-    const [
-      diversification,
-      riskScore,
-    ] = await Promise.all([
+    const [diversification, riskScore] = await Promise.all([
       this.performanceService.getPortfolioAllocation(portfolioId),
       this.riskService.calculateRiskScore(portfolioId),
     ]);
@@ -77,3 +81,6 @@ export class DashboardService {
     };
   }
 }
+
+
+

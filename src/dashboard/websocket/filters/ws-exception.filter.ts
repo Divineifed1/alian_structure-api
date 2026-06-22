@@ -1,7 +1,10 @@
 import { ExceptionFilter, Catch, ArgumentsHost, Logger } from "@nestjs/common";
 import { WsException } from "@nestjs/websockets";
 import { Socket } from "socket.io";
-import { WsErrorResponse, DashboardEvent } from "../interfaces/websocket.interfaces";
+import {
+  WsErrorResponse,
+  DashboardEvent,
+} from "../interfaces/websocket.interfaces";
 
 @Catch()
 export class WsExceptionFilter implements ExceptionFilter {
@@ -9,12 +12,12 @@ export class WsExceptionFilter implements ExceptionFilter {
 
   catch(exception: unknown, host: ArgumentsHost) {
     const client: Socket = host.switchToWs().getClient();
-    
+
     let errorResponse: WsErrorResponse;
 
     if (exception instanceof WsException) {
       const error = exception.getError();
-      
+
       if (typeof error === "string") {
         errorResponse = {
           code: "WS_ERROR",
@@ -37,8 +40,11 @@ export class WsExceptionFilter implements ExceptionFilter {
         code: "INTERNAL_ERROR",
         message: exception.message,
       };
-      
-      this.logger.error(`WebSocket error: ${exception.message}`, exception.stack);
+
+      this.logger.error(
+        `WebSocket error: ${exception.message}`,
+        exception.stack,
+      );
     } else {
       errorResponse = {
         code: "UNKNOWN_ERROR",
@@ -50,3 +56,6 @@ export class WsExceptionFilter implements ExceptionFilter {
     client.emit(DashboardEvent.ERROR, errorResponse);
   }
 }
+
+
+

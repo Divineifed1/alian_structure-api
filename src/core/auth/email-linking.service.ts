@@ -73,7 +73,9 @@ export class EmailLinkingService {
     const token = randomBytes(32).toString("hex");
 
     // Delete any existing verification tokens for this wallet
-    await this.emailVerificationRepository.delete({ walletAddress: normalizedWallet });
+    await this.emailVerificationRepository.delete({
+      walletAddress: normalizedWallet,
+    });
 
     // Create new verification record
     const verification = this.emailVerificationRepository.create({
@@ -197,7 +199,9 @@ export class EmailLinkingService {
     await this.userRepository.save(wallet.user);
 
     // Delete any pending verifications
-    await this.emailVerificationRepository.delete({ walletAddress: normalizedWallet });
+    await this.emailVerificationRepository.delete({
+      walletAddress: normalizedWallet,
+    });
 
     return { message: "Email successfully unlinked from wallet" };
   }
@@ -212,3 +216,6 @@ export class EmailLinkingService {
     });
   }
 }
+
+
+

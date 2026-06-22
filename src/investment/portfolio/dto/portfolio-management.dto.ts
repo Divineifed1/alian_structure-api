@@ -1,7 +1,4 @@
-import {
-  ApiProperty,
-  ApiPropertyOptional,
-} from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsBoolean,
   IsEnum,
@@ -111,10 +108,10 @@ export class PortfolioResponseDto {
   @ApiProperty({ example: 10000 })
   totalValue: number;
 
-  @ApiProperty({ example: { "AAPL": 50, "MSFT": 50 } })
+  @ApiProperty({ example: { AAPL: 50, MSFT: 50 } })
   currentAllocation: Record<string, number>;
 
-  @ApiPropertyOptional({ example: { "AAPL": 60, "MSFT": 40 } })
+  @ApiPropertyOptional({ example: { AAPL: 60, MSFT: 40 } })
   targetAllocation?: Record<string, number>;
 
   @ApiProperty({ example: true })
@@ -140,4 +137,6 @@ export class PortfolioListResponseDto {
   @ApiProperty({ type: [PortfolioResponseDto] })
   portfolios: PortfolioResponseDto[];
 }
+
+
 

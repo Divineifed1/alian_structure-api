@@ -14,13 +14,13 @@ export interface UpstreamConnection {
 }
 
 export interface PoolConfig {
-  maxConnections: number;      // Max 100 connections per upstream (as per requirement)
-  connectionTimeout: number;   // Connection timeout in ms
-  heartbeatInterval: number;   // Heartbeat interval in ms
-  staleThreshold: number;      // Time in ms to consider connection stale
-  reconnectDelay: number;      // Base delay for reconnection
-  maxReconnectDelay: number;   // Maximum reconnection delay
-  maxReconnectAttempts: number;// Maximum reconnection attempts
+  maxConnections: number; // Max 100 connections per upstream (as per requirement)
+  connectionTimeout: number; // Connection timeout in ms
+  heartbeatInterval: number; // Heartbeat interval in ms
+  staleThreshold: number; // Time in ms to consider connection stale
+  reconnectDelay: number; // Base delay for reconnection
+  maxReconnectDelay: number; // Maximum reconnection delay
+  maxReconnectAttempts: number; // Maximum reconnection attempts
 }
 
 export interface PoolStats {
@@ -30,28 +30,28 @@ export interface PoolStats {
   pendingConnections: number;
   maxConnections: number;
   utilizationPercent: number;
-  services: Map<string, number>;  // serviceName -> connection count
+  services: Map<string, number>; // serviceName -> connection count
 }
 
 @Injectable()
 export class ConnectionPoolService implements OnModuleDestroy {
   private readonly logger = new Logger(ConnectionPoolService.name);
-  
+
   // Map of poolName -> UpstreamConnection[]
   private pools: Map<string, UpstreamConnection[]> = new Map();
-  
+
   // Map of connectionId -> UpstreamConnection
   private connections: Map<string, UpstreamConnection> = new Map();
-  
+
   // Pool configurations
   private poolConfigs: Map<string, PoolConfig> = new Map();
-  
+
   // Default configuration
   private readonly defaultConfig: PoolConfig = {
     maxConnections: 100,
     connectionTimeout: 10000,
     heartbeatInterval: 30000,
-    staleThreshold: 5 * 60 * 1000,  // 5 minutes
+    staleThreshold: 5 * 60 * 1000, // 5 minutes
     reconnectDelay: 1000,
     maxReconnectDelay: 30000,
     maxReconnectAttempts: 10,
@@ -60,18 +60,27 @@ export class ConnectionPoolService implements OnModuleDestroy {
   /**
    * Initialize a connection pool for a service
    */
-  async initializePool(poolName: string, config?: Partial<PoolConfig>): Promise<void> {
+  async initializePool(
+    poolName: string,
+    config?: Partial<PoolConfig>,
+  ): Promise<void> {
     const poolConfig = { ...this.defaultConfig, ...config };
     this.poolConfigs.set(poolName, poolConfig);
     this.pools.set(poolName, []);
-    
-    this.logger.log(`Initialized connection pool: ${poolName} (max: ${poolConfig.maxConnections})`);
+
+    this.logger.log(
+      `Initialized connection pool: ${poolName} (max: ${poolConfig.maxConnections})`,
+    );
   }
 
   /**
    * Acquire a connection from the pool
    */
-  async acquire(poolName: string, serviceUrl: string, options?: { metadata?: Record<string, any> }): Promise<UpstreamConnection | null> {
+  async acquire(
+    poolName: string,
+    serviceUrl: string,
+    options?: { metadata?: Record<string, any> },
+  ): Promise<UpstreamConnection | null> {
     const pool = this.pools.get(poolName);
     const config = this.poolConfigs.get(poolName) || this.defaultConfig;
 
@@ -82,8 +91,10 @@ export class ConnectionPoolService implements OnModuleDestroy {
 
     // Check if we can acquire more connections
     if (pool.length >= config.maxConnections) {
-      this.logger.warn(`Pool ${poolName} at max capacity (${config.maxConnections})`);
-      
+      this.logger.warn(
+        `Pool ${poolName} at max capacity (${config.maxConnections})`,
+      );
+
       // Try to find a stale connection to reuse
       const staleConnection = this.findStaleConnection(poolName);
       if (staleConnection) {
@@ -95,13 +106,19 @@ export class ConnectionPoolService implements OnModuleDestroy {
     }
 
     // Check if we already have a connection to this URL
-    const existingConnection = pool.find(c => c.url === serviceUrl && c.isConnected);
+    const existingConnection = pool.find(
+      (c) => c.url === serviceUrl && c.isConnected,
+    );
     if (existingConnection) {
       return existingConnection;
     }
 
     // Create new connection
-    const connection = await this.createConnection(poolName, serviceUrl, options);
+    const connection = await this.createConnection(
+      poolName,
+      serviceUrl,
+      options,
+    );
     return connection;
   }
 
@@ -109,15 +126,15 @@ export class ConnectionPoolService implements OnModuleDestroy {
    * Create a new upstream connection
    */
   private async createConnection(
-    poolName: string, 
-    url: string, 
-    options?: { metadata?: Record<string, any> }
+    poolName: string,
+    url: string,
+    options?: { metadata?: Record<string, any> },
   ): Promise<UpstreamConnection | null> {
     const config = this.poolConfigs.get(poolName) || this.defaultConfig;
     const pool = this.pools.get(poolName);
-    
+
     const connectionId = uuidv4();
-    
+
     return new Promise((resolve) => {
       const socket = io(url, {
         transports: ["websocket"],
@@ -147,24 +164,30 @@ export class ConnectionPoolService implements OnModuleDestroy {
       socket.on("connect", () => {
         connection.isConnected = true;
         connection.lastHeartbeat = new Date();
-        
+
         // Join pool
         pool.push(connection);
         this.connections.set(connectionId, connection);
-        
-        this.logger.log(`Upstream connection established: ${connectionId} (${url})`);
-        
+
+        this.logger.log(
+          `Upstream connection established: ${connectionId} (${url})`,
+        );
+
         // Start heartbeat monitoring for this connection
         this.startHeartbeatMonitoring(connection);
       });
 
       socket.on("disconnect", (reason) => {
         connection.isConnected = false;
-        this.logger.warn(`Upstream connection disconnected: ${connectionId} (${reason})`);
+        this.logger.warn(
+          `Upstream connection disconnected: ${connectionId} (${reason})`,
+        );
       });
 
       socket.on("connect_error", (error) => {
-        this.logger.error(`Upstream connection error: ${connectionId} - ${error.message}`);
+        this.logger.error(
+          `Upstream connection error: ${connectionId} - ${error.message}`,
+        );
       });
 
       socket.on("pong", () => {
@@ -208,7 +231,7 @@ export class ConnectionPoolService implements OnModuleDestroy {
     // Remove from pool
     const pool = this.pools.get(connection.serviceName);
     if (pool) {
-      const index = pool.findIndex(c => c.id === connectionId);
+      const index = pool.findIndex((c) => c.id === connectionId);
       if (index !== -1) {
         pool.splice(index, 1);
       }
@@ -221,7 +244,7 @@ export class ConnectionPoolService implements OnModuleDestroy {
 
     // Remove from connections map
     this.connections.delete(connectionId);
-    
+
     this.logger.log(`Disconnected upstream connection: ${connectionId}`);
   }
 
@@ -238,7 +261,9 @@ export class ConnectionPoolService implements OnModuleDestroy {
       connection.socket.emit(event, data);
       return true;
     } catch (error) {
-      this.logger.error(`Failed to send message on connection ${connectionId}: ${error.message}`);
+      this.logger.error(
+        `Failed to send message on connection ${connectionId}: ${error.message}`,
+      );
       return false;
     }
   }
@@ -249,16 +274,19 @@ export class ConnectionPoolService implements OnModuleDestroy {
   getPoolStats(poolName: string): PoolStats | null {
     const pool = this.pools.get(poolName);
     const config = this.poolConfigs.get(poolName);
-    
+
     if (!pool || !config) return null;
 
-    const activeConnections = pool.filter(c => c.isConnected).length;
-    const pendingConnections = pool.filter(c => !c.isConnected).length;
+    const activeConnections = pool.filter((c) => c.isConnected).length;
+    const pendingConnections = pool.filter((c) => !c.isConnected).length;
 
     // Count connections by service name
     const services = new Map<string, number>();
     for (const connection of pool) {
-      services.set(connection.serviceName, (services.get(connection.serviceName) || 0) + 1);
+      services.set(
+        connection.serviceName,
+        (services.get(connection.serviceName) || 0) + 1,
+      );
     }
 
     return {
@@ -277,14 +305,14 @@ export class ConnectionPoolService implements OnModuleDestroy {
    */
   getAllStats(): PoolStats[] {
     const stats: PoolStats[] = [];
-    
+
     for (const poolName of this.pools.keys()) {
       const poolStats = this.getPoolStats(poolName);
       if (poolStats) {
         stats.push(poolStats);
       }
     }
-    
+
     return stats;
   }
 
@@ -312,8 +340,9 @@ export class ConnectionPoolService implements OnModuleDestroy {
    * Start heartbeat monitoring for a connection
    */
   private startHeartbeatMonitoring(connection: UpstreamConnection): void {
-    const config = this.poolConfigs.get(connection.serviceName) || this.defaultConfig;
-    
+    const config =
+      this.poolConfigs.get(connection.serviceName) || this.defaultConfig;
+
     const interval = setInterval(() => {
       if (!connection.isConnected) {
         clearInterval(interval);
@@ -324,7 +353,9 @@ export class ConnectionPoolService implements OnModuleDestroy {
         connection.socket.emit("ping", { timestamp: Date.now() });
         connection.lastHeartbeat = new Date(); // Optimistic update
       } catch (error) {
-        this.logger.error(`Heartbeat failed for connection ${connection.id}: ${error.message}`);
+        this.logger.error(
+          `Heartbeat failed for connection ${connection.id}: ${error.message}`,
+        );
       }
     }, config.heartbeatInterval);
   }
@@ -343,9 +374,10 @@ export class ConnectionPoolService implements OnModuleDestroy {
     const connection = this.connections.get(connectionId);
     if (!connection) return false;
 
-    const config = this.poolConfigs.get(connection.serviceName) || this.defaultConfig;
+    const config =
+      this.poolConfigs.get(connection.serviceName) || this.defaultConfig;
     const timeSinceHeartbeat = Date.now() - connection.lastHeartbeat.getTime();
-    
+
     return connection.isConnected && timeSinceHeartbeat < config.staleThreshold;
   }
 
@@ -358,7 +390,7 @@ export class ConnectionPoolService implements OnModuleDestroy {
 
     for (const [poolName, pool] of this.pools.entries()) {
       const config = this.poolConfigs.get(poolName) || this.defaultConfig;
-      
+
       for (const connection of [...pool]) {
         const timeSinceHeartbeat = now - connection.lastHeartbeat.getTime();
         if (timeSinceHeartbeat > config.staleThreshold) {
@@ -380,11 +412,14 @@ export class ConnectionPoolService implements OnModuleDestroy {
     for (const connectionId of this.connections.keys()) {
       await this.disconnect(connectionId);
     }
-    
+
     this.pools.clear();
     this.connections.clear();
     this.poolConfigs.clear();
-    
+
     this.logger.log("Connection pool service shut down");
   }
 }
+
+
+

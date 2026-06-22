@@ -1,21 +1,25 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { BufferedEvent, DashboardEvent, EventBufferConfig } from "../interfaces/websocket.interfaces";
+import {
+  BufferedEvent,
+  DashboardEvent,
+  EventBufferConfig,
+} from "../interfaces/websocket.interfaces";
 
 @Injectable()
 export class EventBufferService {
   private readonly logger = new Logger(EventBufferService.name);
-  
+
   // Map of userId -> BufferedEvent[]
   private eventBuffers: Map<string, BufferedEvent[]> = new Map();
-  
+
   // Map of userId -> disconnected clientId
   private disconnectionTracker: Map<string, string> = new Map();
-  
+
   // Configuration
   private readonly config: EventBufferConfig = {
-    maxEvents: 1000,           // Maximum 1000 events per user
-    maxAge: 5 * 60 * 1000,     // 5 minutes
-    flushInterval: 60 * 1000,  // Check every minute
+    maxEvents: 1000, // Maximum 1000 events per user
+    maxAge: 5 * 60 * 1000, // 5 minutes
+    flushInterval: 60 * 1000, // Check every minute
   };
 
   /**
@@ -26,7 +30,9 @@ export class EventBufferService {
       this.eventBuffers.set(userId, []);
     }
     this.disconnectionTracker.set(userId, clientId);
-    this.logger.debug(`Started buffering events for user ${userId} (client: ${clientId})`);
+    this.logger.debug(
+      `Started buffering events for user ${userId} (client: ${clientId})`,
+    );
   }
 
   /**
@@ -43,7 +49,7 @@ export class EventBufferService {
    */
   bufferEvent(userId: string, event: BufferedEvent): void {
     let buffer = this.eventBuffers.get(userId);
-    
+
     if (!buffer) {
       buffer = [];
       this.eventBuffers.set(userId, buffer);
@@ -59,7 +65,9 @@ export class EventBufferService {
     if (buffer.length > this.config.maxEvents) {
       // Remove oldest events
       buffer.splice(0, buffer.length - this.config.maxEvents);
-      this.logger.warn(`Buffer overflow for user ${userId}, trimmed to ${this.config.maxEvents} events`);
+      this.logger.warn(
+        `Buffer overflow for user ${userId}, trimmed to ${this.config.maxEvents} events`,
+      );
     }
   }
 
@@ -69,11 +77,11 @@ export class EventBufferService {
   getBufferedEvents(userId: string): BufferedEvent[] {
     const buffer = this.eventBuffers.get(userId);
     if (!buffer) return [];
-    
+
     // Clear buffer after retrieving
     const events = [...buffer];
     this.stopBuffering(userId);
-    
+
     return events;
   }
 
@@ -83,8 +91,8 @@ export class EventBufferService {
   getEventsSince(userId: string, since: Date): BufferedEvent[] {
     const buffer = this.eventBuffers.get(userId);
     if (!buffer) return [];
-    
-    return buffer.filter(event => event.timestamp >= since);
+
+    return buffer.filter((event) => event.timestamp >= since);
   }
 
   /**
@@ -110,7 +118,7 @@ export class EventBufferService {
     const now = Date.now();
 
     for (const [userId, buffer] of this.eventBuffers.entries()) {
-      const filteredBuffer = buffer.filter(event => {
+      const filteredBuffer = buffer.filter((event) => {
         const age = now - event.timestamp.getTime();
         return age <= maxAgeMs;
       });
@@ -150,7 +158,7 @@ export class EventBufferService {
     usersCurrentlyBuffering: number;
   } {
     let totalEvents = 0;
-    
+
     for (const buffer of this.eventBuffers.values()) {
       totalEvents += buffer.length;
     }
@@ -158,9 +166,8 @@ export class EventBufferService {
     return {
       totalUsers: this.eventBuffers.size,
       totalEvents,
-      averageEventsPerUser: this.eventBuffers.size > 0 
-        ? totalEvents / this.eventBuffers.size 
-        : 0,
+      averageEventsPerUser:
+        this.eventBuffers.size > 0 ? totalEvents / this.eventBuffers.size : 0,
       usersCurrentlyBuffering: this.disconnectionTracker.size,
     };
   }
@@ -172,3 +179,6 @@ export class EventBufferService {
     return this.disconnectionTracker.get(userId);
   }
 }
+
+
+

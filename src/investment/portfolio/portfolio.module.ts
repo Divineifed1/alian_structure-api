@@ -19,14 +19,13 @@ import { PerformanceAnalyticsService } from "./services/performance-analytics.se
 import { BacktestingService } from "./services/backtesting.service";
 import { MLPredictionService } from "./services/ml-prediction.service";
 import { PortfolioConstraintService } from "./services/portfolio-constraint.service";
-import { AuditLogService } from "../../infrastructure/audit/audit-log.service";
+import { AuditLogService } from "src/infrastructure/audit/audit-log.service";
 import { TradingTransactionService } from "./services/trading-transaction.service";
 
 // Controllers
 import { PortfolioController } from "./portfolio.controller";
 import { PortfolioManagementController } from "./portfolio-management.controller";
 import { PortfolioOwnerGuard } from "./guards/portfolio-owner.guard";
-
 
 @Module({
   imports: [
@@ -82,3 +81,6 @@ import { PortfolioOwnerGuard } from "./guards/portfolio-owner.guard";
   ],
 })
 export class PortfolioModule {}
+
+
+

@@ -31,11 +31,13 @@ import {
     credentials: true,
   },
   pingInterval: 30000, // 30 second heartbeat interval
-  pingTimeout: 5000,   // 5 second timeout for pong response
+  pingTimeout: 5000, // 5 second timeout for pong response
 })
 @UseFilters(WsExceptionFilter)
 @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
-export class DashboardGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class DashboardGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
@@ -50,10 +52,10 @@ export class DashboardGateway implements OnGatewayInit, OnGatewayConnection, OnG
 
   async afterInit(server: Server) {
     this.logger.log("Dashboard WebSocket Gateway initialized");
-    
+
     // Initialize connection health monitoring
     this.startHealthMonitoring();
-    
+
     // Initialize stale connection cleanup
     this.startStaleConnectionCleanup();
   }
@@ -63,15 +65,20 @@ export class DashboardGateway implements OnGatewayInit, OnGatewayConnection, OnG
       // Authenticate the client
       const token = this.extractToken(client);
       if (!token) {
-        this.logger.warn(`Connection rejected: No token provided for client ${client.id}`);
-        client.emit("error", { code: "AUTH_REQUIRED", message: "Authentication token required" });
+        this.logger.warn(
+          `Connection rejected: No token provided for client ${client.id}`,
+        );
+        client.emit("error", {
+          code: "AUTH_REQUIRED",
+          message: "Authentication token required",
+        });
         client.disconnect(true);
         return;
       }
 
       const payload = this.jwtService.verify(token);
       const userId = payload.sub || payload.userId;
-      
+
       if (!userId) {
         throw new Error("Invalid token: missing user ID");
       }
@@ -83,7 +90,7 @@ export class DashboardGateway implements OnGatewayInit, OnGatewayConnection, OnG
         connectedAt: new Date(),
         lastHeartbeat: new Date(),
         isAlive: true,
-        subscriptions: [],  // Initialize with empty subscriptions
+        subscriptions: [], // Initialize with empty subscriptions
       });
 
       // Join user room for broadcasting
@@ -91,19 +98,26 @@ export class DashboardGateway implements OnGatewayInit, OnGatewayConnection, OnG
 
       // Update metrics
       this.metricsService.incrementConnection("dashboard", "connect");
-      this.metricsService.setActiveConnections("dashboard", await this.getConnectionCount());
+      this.metricsService.setActiveConnections(
+        "dashboard",
+        await this.getConnectionCount(),
+      );
 
       this.logger.log(`Client connected: ${client.id} (user: ${userId})`);
 
       // Send buffered events for this user (missed during disconnection)
-      const bufferedEvents = this.eventBuffer.getBufferedEvents(userId as string);
+      const bufferedEvents = this.eventBuffer.getBufferedEvents(
+        userId as string,
+      );
       if (bufferedEvents.length > 0) {
         client.emit(DashboardEvent.RECONNECTION_SUCCESS, {
           missedEvents: bufferedEvents.length,
           events: bufferedEvents,
         } as ReconnectionPayload);
-        
-        this.logger.log(`Sent ${bufferedEvents.length} buffered events to client ${client.id}`);
+
+        this.logger.log(
+          `Sent ${bufferedEvents.length} buffered events to client ${client.id}`,
+        );
       }
 
       // Notify client of successful connection
@@ -112,30 +126,39 @@ export class DashboardGateway implements OnGatewayInit, OnGatewayConnection, OnG
         timestamp: new Date().toISOString(),
         heartbeatInterval: 30000,
       });
-
     } catch (error) {
-      this.logger.error(`Connection error for client ${client.id}: ${error.message}`);
+      this.logger.error(
+        `Connection error for client ${client.id}: ${error.message}`,
+      );
       this.metricsService.incrementConnection("dashboard", "error");
-      client.emit("error", { code: "AUTH_FAILED", message: "Authentication failed" });
+      client.emit("error", {
+        code: "AUTH_FAILED",
+        message: "Authentication failed",
+      });
       client.disconnect(true);
     }
   }
 
   async handleDisconnect(client: Socket) {
     const connectionInfo = this.connectionManager.getConnectionInfo(client.id);
-    
+
     if (connectionInfo) {
       // Keep connection info for event buffering (up to 5 minutes)
       this.connectionManager.markDisconnected(client.id);
-      
+
       // Start buffering events for this user
       this.eventBuffer.startBuffering(connectionInfo.userId, client.id);
-      
-      this.logger.log(`Client disconnected: ${client.id} (user: ${connectionInfo.userId})`);
-      
+
+      this.logger.log(
+        `Client disconnected: ${client.id} (user: ${connectionInfo.userId})`,
+      );
+
       // Update metrics
       this.metricsService.incrementConnection("dashboard", "disconnect");
-      this.metricsService.setActiveConnections("dashboard", await this.getConnectionCount());
+      this.metricsService.setActiveConnections(
+        "dashboard",
+        await this.getConnectionCount(),
+      );
     }
   }
 
@@ -146,9 +169,9 @@ export class DashboardGateway implements OnGatewayInit, OnGatewayConnection, OnG
   ) {
     // Update heartbeat timestamp
     this.connectionManager.updateHeartbeat(client.id);
-    
+
     this.metricsService.recordHeartbeat("dashboard");
-    
+
     return {
       event: DashboardEvent.PONG,
       data: {
@@ -169,14 +192,16 @@ export class DashboardGateway implements OnGatewayInit, OnGatewayConnection, OnG
     }
 
     const { portfolioId } = payload.data;
-    
+
     // Join portfolio room
     client.join(`portfolio:${portfolioId}`);
-    
+
     this.connectionManager.subscribeToPortfolio(client.id, portfolioId);
-    
-    this.logger.log(`Client ${client.id} subscribed to portfolio ${portfolioId}`);
-    
+
+    this.logger.log(
+      `Client ${client.id} subscribed to portfolio ${portfolioId}`,
+    );
+
     return {
       event: DashboardEvent.SUBSCRIPTION_CONFIRMED,
       data: {
@@ -192,10 +217,10 @@ export class DashboardGateway implements OnGatewayInit, OnGatewayConnection, OnG
     @MessageBody() payload: ClientMessage<{ portfolioId: string }>,
   ) {
     const { portfolioId } = payload.data;
-    
+
     client.leave(`portfolio:${portfolioId}`);
     this.connectionManager.unsubscribeFromPortfolio(client.id, portfolioId);
-    
+
     return {
       event: DashboardEvent.UNSUBSCRIPTION_CONFIRMED,
       data: { portfolioId },
@@ -214,9 +239,12 @@ export class DashboardGateway implements OnGatewayInit, OnGatewayConnection, OnG
 
     const { since } = payload.data;
     const sinceDate = new Date(since);
-    
-    const replayedEvents = this.eventBuffer.getEventsSince(connectionInfo.userId, sinceDate);
-    
+
+    const replayedEvents = this.eventBuffer.getEventsSince(
+      connectionInfo.userId,
+      sinceDate,
+    );
+
     return {
       event: DashboardEvent.EVENTS_REPLAYED,
       data: {
@@ -237,7 +265,11 @@ export class DashboardGateway implements OnGatewayInit, OnGatewayConnection, OnG
 
   // Buffer event during disconnection
   bufferEvent(userId: string, event: DashboardEvent, data: any) {
-    this.eventBuffer.bufferEvent(userId, { event, data, timestamp: new Date() });
+    this.eventBuffer.bufferEvent(userId, {
+      event,
+      data,
+      timestamp: new Date(),
+    });
   }
 
   private extractToken(client: Socket): string | null {
@@ -278,24 +310,31 @@ export class DashboardGateway implements OnGatewayInit, OnGatewayConnection, OnG
   private startStaleConnectionCleanup() {
     // Check for stale connections every 60 seconds
     setInterval(async () => {
-      const staleConnections = this.connectionManager.getStaleConnections(5 * 60 * 1000); // 5 minutes
-      
+      const staleConnections = this.connectionManager.getStaleConnections(
+        5 * 60 * 1000,
+      ); // 5 minutes
+
       for (const [clientId, info] of staleConnections) {
         this.logger.warn(`Closing stale connection: ${clientId}`);
-        
+
         // Emit stale notification to the client - the client will be disconnected by socket.io
         // when it doesn't respond to heartbeat
-        this.server.to(`user:${info.userId}`).emit(DashboardEvent.CONNECTION_STALE, {
-          reason: "Connection timeout",
-          disconnectedAt: new Date().toISOString(),
-        });
-        
+        this.server
+          .to(`user:${info.userId}`)
+          .emit(DashboardEvent.CONNECTION_STALE, {
+            reason: "Connection timeout",
+            disconnectedAt: new Date().toISOString(),
+          });
+
         this.connectionManager.removeConnection(clientId);
         this.metricsService.incrementConnection("dashboard", "stale_cleanup");
       }
-      
+
       // Clean up buffered events older than 5 minutes
       this.eventBuffer.cleanupOldEvents(5 * 60 * 1000);
     }, 60000);
   }
 }
+
+
+

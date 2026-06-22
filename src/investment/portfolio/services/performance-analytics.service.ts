@@ -497,17 +497,25 @@ export class PerformanceAnalyticsService {
     }
   }
 
-  async getPortfolioPerformance(portfolioId: string, timeRange: TimeRange): Promise<PerformanceResponseDto> {
+  async getPortfolioPerformance(
+    portfolioId: string,
+    timeRange: TimeRange,
+  ): Promise<PerformanceResponseDto> {
     const startDate = this.getStartDateFromTimeRange(timeRange);
-    const [portfolio, returnPercentage, volatility, sharpeRatio, maxDrawdown] = await Promise.all([
-      this.portfolioRepository.findOneBy({ id: portfolioId }),
-      this.calculateCumulativeReturn(portfolioId, startDate),
-      this.calculateVolatility(portfolioId),
-      this.calculateSharpeRatio(portfolioId),
-      this.calculateMaxDrawdown(portfolioId),
-    ]);
+    const [portfolio, returnPercentage, volatility, sharpeRatio, maxDrawdown] =
+      await Promise.all([
+        this.portfolioRepository.findOneBy({ id: portfolioId }),
+        this.calculateCumulativeReturn(portfolioId, startDate),
+        this.calculateVolatility(portfolioId),
+        this.calculateSharpeRatio(portfolioId),
+        this.calculateMaxDrawdown(portfolioId),
+      ]);
 
-    const totalValue = portfolio?.assets?.reduce((sum, asset) => sum + (asset.quantity * asset.currentPrice), 0) || 0;
+    const totalValue =
+      portfolio?.assets?.reduce(
+        (sum, asset) => sum + asset.quantity * asset.currentPrice,
+        0,
+      ) || 0;
     const now = new Date();
 
     return {
@@ -523,21 +531,31 @@ export class PerformanceAnalyticsService {
     };
   }
 
-  async getPortfolioAllocation(portfolioId: string): Promise<AllocationResponseDto> {
+  async getPortfolioAllocation(
+    portfolioId: string,
+  ): Promise<AllocationResponseDto> {
     const portfolio = await this.portfolioRepository.findOne({
       where: { id: portfolioId },
       relations: ["assets"],
     });
 
-    const totalValue = portfolio?.assets?.reduce((sum, asset) => sum + (asset.quantity * asset.currentPrice), 0) || 0;
-    const assets = portfolio?.assets?.map(asset => ({
-      ticker: asset.ticker,
-      name: asset.name,
-      quantity: asset.quantity,
-      currentPrice: asset.currentPrice,
-      value: asset.quantity * asset.currentPrice,
-      percentage: totalValue > 0 ? (asset.quantity * asset.currentPrice) / totalValue : 0,
-    })) || [];
+    const totalValue =
+      portfolio?.assets?.reduce(
+        (sum, asset) => sum + asset.quantity * asset.currentPrice,
+        0,
+      ) || 0;
+    const assets =
+      portfolio?.assets?.map((asset) => ({
+        ticker: asset.ticker,
+        name: asset.name,
+        quantity: asset.quantity,
+        currentPrice: asset.currentPrice,
+        value: asset.quantity * asset.currentPrice,
+        percentage:
+          totalValue > 0
+            ? (asset.quantity * asset.currentPrice) / totalValue
+            : 0,
+      })) || [];
     const now = new Date();
 
     return {
@@ -548,12 +566,15 @@ export class PerformanceAnalyticsService {
     };
   }
 
-  async getPerformanceHistory(portfolioId: string, timeRange: TimeRange): Promise<Array<{ date: Date; value: number; return: number }>> {
+  async getPerformanceHistory(
+    portfolioId: string,
+    timeRange: TimeRange,
+  ): Promise<Array<{ date: Date; value: number; return: number }>> {
     const startDate = this.getStartDateFromTimeRange(timeRange);
     const metrics = await this.metricRepository.find({
       where: {
         portfolioId,
-        dateTime: startDate ? { $gte: startDate } as any : undefined,
+        dateTime: startDate ? ({ $gte: startDate } as any) : undefined,
       },
       order: { dateTime: "ASC" },
     });
@@ -561,15 +582,21 @@ export class PerformanceAnalyticsService {
     if (metrics.length === 0) return [];
 
     const firstValue = metrics[0].portfolioValue;
-    return metrics.map(metric => ({
+    return metrics.map((metric) => ({
       date: metric.dateTime,
       value: metric.portfolioValue,
       return: (metric.portfolioValue - firstValue) / firstValue,
     }));
   }
 
-  async getBenchmarkComparison(portfolioId: string, timeRange: TimeRange): Promise<ComparisonResponseDto> {
-    const portfolioReturn = await this.calculateCumulativeReturn(portfolioId, this.getStartDateFromTimeRange(timeRange));
+  async getBenchmarkComparison(
+    portfolioId: string,
+    timeRange: TimeRange,
+  ): Promise<ComparisonResponseDto> {
+    const portfolioReturn = await this.calculateCumulativeReturn(
+      portfolioId,
+      this.getStartDateFromTimeRange(timeRange),
+    );
     const benchmarkReturn = 0.08; // 8% annual benchmark return (placeholder)
     const now = new Date();
 
@@ -584,3 +611,6 @@ export class PerformanceAnalyticsService {
     };
   }
 }
+
+
+

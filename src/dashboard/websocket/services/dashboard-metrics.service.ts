@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Counter, Gauge, Histogram, Registry } from "prom-client";
-import { register } from "../../../config/metrics";
+import { register } from "src/config/metrics";
 
 // WebSocket-specific metrics
 
@@ -8,7 +8,7 @@ import { register } from "../../../config/metrics";
 export const wsConnectionsTotal = new Counter({
   name: "alian_structure_ws_connections_total",
   help: "Total number of WebSocket connections",
-  labelNames: ["namespace", "type"],  // type: connect, disconnect, error, stale_cleanup
+  labelNames: ["namespace", "type"], // type: connect, disconnect, error, stale_cleanup
   registers: [register],
 });
 
@@ -90,7 +90,7 @@ export const wsEventsReceived = new Counter({
 export const wsReconnectionsTotal = new Counter({
   name: "alian_structure_ws_reconnections_total",
   help: "Total number of client reconnection attempts",
-  labelNames: ["namespace", "status"],  // status: success, failed
+  labelNames: ["namespace", "status"], // status: success, failed
   registers: [register],
 });
 
@@ -135,7 +135,7 @@ export const upstreamPoolUtilization = new Gauge({
 export const upstreamPoolRequestsTotal = new Counter({
   name: "alian_structure_upstream_pool_requests_total",
   help: "Total requests sent through upstream connection pool",
-  labelNames: ["pool_name", "status"],  // status: success, failure
+  labelNames: ["pool_name", "status"], // status: success, failure
   registers: [register],
 });
 
@@ -155,7 +155,10 @@ export class DashboardMetricsService {
   /**
    * Increment connection counter
    */
-  incrementConnection(namespace: string, type: "connect" | "disconnect" | "error" | "stale_cleanup"): void {
+  incrementConnection(
+    namespace: string,
+    type: "connect" | "disconnect" | "error" | "stale_cleanup",
+  ): void {
     wsConnectionsTotal.labels(namespace, type).inc();
   }
 
@@ -184,7 +187,11 @@ export class DashboardMetricsService {
   /**
    * Record reconnection
    */
-  recordReconnection(namespace: string, status: "success" | "failed", delayMs: number): void {
+  recordReconnection(
+    namespace: string,
+    status: "success" | "failed",
+    delayMs: number,
+  ): void {
     wsReconnectionsTotal.labels(namespace, status).inc();
     if (status === "success") {
       wsReconnectionDelay.labels(namespace).observe(delayMs / 1000);
@@ -215,7 +222,11 @@ export class DashboardMetricsService {
   /**
    * Set active subscriptions gauge
    */
-  setActiveSubscriptions(namespace: string, channel: string, count: number): void {
+  setActiveSubscriptions(
+    namespace: string,
+    channel: string,
+    count: number,
+  ): void {
     wsActiveSubscriptions.labels(namespace, channel).set(count);
   }
 
@@ -236,18 +247,25 @@ export class DashboardMetricsService {
   /**
    * Record message latency
    */
-  recordMessageLatency(namespace: string, eventType: string, latencyMs: number): void {
+  recordMessageLatency(
+    namespace: string,
+    eventType: string,
+    latencyMs: number,
+  ): void {
     wsMessageLatency.labels(namespace, eventType).observe(latencyMs / 1000);
   }
 
   /**
    * Update upstream pool metrics
    */
-  updateUpstreamPoolMetrics(poolName: string, stats: {
-    total: number;
-    active: number;
-    utilization: number;
-  }): void {
+  updateUpstreamPoolMetrics(
+    poolName: string,
+    stats: {
+      total: number;
+      active: number;
+      utilization: number;
+    },
+  ): void {
     upstreamPoolConnectionsTotal.labels(poolName).set(stats.total);
     upstreamPoolActiveConnections.labels(poolName).set(stats.active);
     upstreamPoolUtilization.labels(poolName).set(stats.utilization);
@@ -274,3 +292,6 @@ export class DashboardMetricsService {
     return register.contentType;
   }
 }
+
+
+

@@ -37,7 +37,6 @@ export class RiskAssessmentService {
     const protocolRiskMetrics = await adapter.getRiskMetrics(
       position.wallet_address,
       position.token_symbol,
-      
     );
 
     // Calculate risk components
@@ -431,3 +430,6 @@ export interface RiskMonitoringResult {
     healthRating: string;
   };
 }
+
+
+

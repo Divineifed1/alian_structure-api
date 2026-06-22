@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { register, Histogram, Gauge } from 'prom-client';
+import { Injectable, Logger } from "@nestjs/common";
+import { register, Histogram, Gauge } from "prom-client";
 
 export interface BaselineMetric {
   route: string;
@@ -25,7 +25,7 @@ export class PerformanceBaselineService {
   private readonly logger = new Logger(PerformanceBaselineService.name);
   private baselines: Map<string, BaselineMetric> = new Map();
   private regressions: RegressionDetection[] = [];
-  
+
   // Prometheus metrics for baseline tracking
   private readonly baselineP50Gauge: Gauge;
   private readonly baselineP95Gauge: Gauge;
@@ -39,37 +39,37 @@ export class PerformanceBaselineService {
   constructor() {
     // Initialize Prometheus gauges
     this.baselineP50Gauge = new Gauge({
-      name: 'alian_structure_baseline_p50_seconds',
-      help: 'Baseline P50 latency for routes',
-      labelNames: ['route', 'method'],
+      name: "alian_structure_baseline_p50_seconds",
+      help: "Baseline P50 latency for routes",
+      labelNames: ["route", "method"],
       registers: [register],
     });
 
     this.baselineP95Gauge = new Gauge({
-      name: 'alian_structure_baseline_p95_seconds',
-      help: 'Baseline P95 latency for routes',
-      labelNames: ['route', 'method'],
+      name: "alian_structure_baseline_p95_seconds",
+      help: "Baseline P95 latency for routes",
+      labelNames: ["route", "method"],
       registers: [register],
     });
 
     this.baselineP99Gauge = new Gauge({
-      name: 'alian_structure_baseline_p99_seconds',
-      help: 'Baseline P99 latency for routes',
-      labelNames: ['route', 'method'],
+      name: "alian_structure_baseline_p99_seconds",
+      help: "Baseline P99 latency for routes",
+      labelNames: ["route", "method"],
       registers: [register],
     });
 
     this.regressionCounter = new Gauge({
-      name: 'alian_structure_performance_regressions_total',
-      help: 'Total number of detected performance regressions',
+      name: "alian_structure_performance_regressions_total",
+      help: "Total number of detected performance regressions",
       registers: [register],
     });
     this.regressionCounter.set(0);
 
     this.requestDurationHistogram = new Histogram({
-      name: 'alian_structure_request_duration_baseline_seconds',
-      help: 'Request duration compared to baseline',
-      labelNames: ['route', 'method', 'baseline_status'],
+      name: "alian_structure_request_duration_baseline_seconds",
+      help: "Request duration compared to baseline",
+      labelNames: ["route", "method", "baseline_status"],
       buckets: [0.1, 0.3, 0.5, 0.7, 1, 3, 5, 7, 10],
       registers: [register],
     });
@@ -78,23 +78,32 @@ export class PerformanceBaselineService {
   /**
    * Record a request duration and update baselines
    */
-  recordRequestDuration(route: string, method: string, durationSeconds: number) {
+  recordRequestDuration(
+    route: string,
+    method: string,
+    durationSeconds: number,
+  ) {
     const key = `${method}:${route}`;
-    
+
     // Add to histogram
-    let baselineStatus = 'normal';
+    let baselineStatus = "normal";
     const baseline = this.baselines.get(key);
-    
+
     if (baseline) {
-      if (durationSeconds > baseline.p95 * (1 + this.regressionThreshold / 100)) {
-        baselineStatus = 'regression';
+      if (
+        durationSeconds >
+        baseline.p95 * (1 + this.regressionThreshold / 100)
+      ) {
+        baselineStatus = "regression";
         this.detectRegression(route, method, durationSeconds, baseline.p95);
       } else if (durationSeconds > baseline.p95) {
-        baselineStatus = 'slow';
+        baselineStatus = "slow";
       }
     }
 
-    this.requestDurationHistogram.labels(route, method, baselineStatus).observe(durationSeconds);
+    this.requestDurationHistogram
+      .labels(route, method, baselineStatus)
+      .observe(durationSeconds);
 
     // Update baseline with exponential moving average
     this.updateBaseline(key, route, method, durationSeconds);
@@ -103,9 +112,14 @@ export class PerformanceBaselineService {
   /**
    * Update baseline metrics with new data point
    */
-  private updateBaseline(key: string, route: string, method: string, durationSeconds: number) {
+  private updateBaseline(
+    key: string,
+    route: string,
+    method: string,
+    durationSeconds: number,
+  ) {
     const existing = this.baselines.get(key);
-    
+
     if (!existing) {
       // Initialize baseline with first value
       this.baselines.set(key, {
@@ -115,7 +129,7 @@ export class PerformanceBaselineService {
         p95: durationSeconds,
         p99: durationSeconds,
         sampleCount: 1,
-        lastUpdated: new Date()
+        lastUpdated: new Date(),
       });
       return;
     }
@@ -128,7 +142,7 @@ export class PerformanceBaselineService {
       p95: existing.p95 * (1 - alpha) + durationSeconds * alpha,
       p99: existing.p99 * (1 - alpha) + durationSeconds * alpha,
       sampleCount: existing.sampleCount + 1,
-      lastUpdated: new Date()
+      lastUpdated: new Date(),
     };
 
     this.baselines.set(key, updated);
@@ -142,23 +156,31 @@ export class PerformanceBaselineService {
   /**
    * Detect performance regressions
    */
-  private detectRegression(route: string, method: string, currentDuration: number, baselineP95: number) {
-    const percentageIncrease = ((currentDuration - baselineP95) / baselineP95) * 100;
-    
+  private detectRegression(
+    route: string,
+    method: string,
+    currentDuration: number,
+    baselineP95: number,
+  ) {
+    const percentageIncrease =
+      ((currentDuration - baselineP95) / baselineP95) * 100;
+
     const regression: RegressionDetection = {
       route,
       method,
       currentDuration,
       baselineP95,
       percentageIncrease,
-      detectedAt: new Date()
+      detectedAt: new Date(),
     };
 
     this.regressions.push(regression);
     this.regressionCounter.set(this.regressions.length);
 
     // Log the regression as a warning
-    this.logger.warn(`⚠️ Performance regression detected for ${method} ${route}: ${percentageIncrease.toFixed(1)}% slower than baseline P95. Current: ${currentDuration.toFixed(3)}s, Baseline: ${baselineP95.toFixed(3)}s`);
+    this.logger.warn(
+      `⚠️ Performance regression detected for ${method} ${route}: ${percentageIncrease.toFixed(1)}% slower than baseline P95. Current: ${currentDuration.toFixed(3)}s, Baseline: ${baselineP95.toFixed(3)}s`,
+    );
   }
 
   /**
@@ -181,8 +203,8 @@ export class PerformanceBaselineService {
   cleanupOldRegressions() {
     const oneDayAgo = new Date();
     oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-    
-    this.regressions = this.regressions.filter(r => r.detectedAt > oneDayAgo);
+
+    this.regressions = this.regressions.filter((r) => r.detectedAt > oneDayAgo);
     this.regressionCounter.set(this.regressions.length);
   }
 
@@ -193,6 +215,9 @@ export class PerformanceBaselineService {
     this.baselines.clear();
     this.regressions = [];
     this.regressionCounter.set(0);
-    this.logger.log('Performance baselines have been reset');
+    this.logger.log("Performance baselines have been reset");
   }
 }
+
+
+

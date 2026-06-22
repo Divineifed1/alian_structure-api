@@ -44,7 +44,7 @@ describe("EventBufferService", () => {
   describe("bufferEvent", () => {
     it("should buffer events for a user", () => {
       service.startBuffering("user-123", "client-456");
-      
+
       service.bufferEvent("user-123", {
         event: DashboardEvent.PORTFOLIO_UPDATE,
         data: { portfolioId: "123", totalValue: 1000 },
@@ -56,7 +56,7 @@ describe("EventBufferService", () => {
 
     it("should auto-create buffer when buffering starts", () => {
       service.startBuffering("user-123", "client-456");
-      
+
       service.bufferEvent("user-123", {
         event: DashboardEvent.PORTFOLIO_UPDATE,
         data: {},
@@ -70,13 +70,13 @@ describe("EventBufferService", () => {
   describe("getBufferedEvents", () => {
     it("should return and clear buffered events", () => {
       service.startBuffering("user-123", "client-456");
-      
+
       service.bufferEvent("user-123", {
         event: DashboardEvent.PORTFOLIO_UPDATE,
         data: { test: 1 },
         timestamp: new Date(),
       });
-      
+
       service.bufferEvent("user-123", {
         event: DashboardEvent.RISK_UPDATE,
         data: { test: 2 },
@@ -98,7 +98,7 @@ describe("EventBufferService", () => {
   describe("getEventsSince", () => {
     it("should return events since a specific date", () => {
       service.startBuffering("user-123", "client-456");
-      
+
       const oldDate = new Date("2024-01-01T00:00:00Z");
       const newDate = new Date("2024-01-02T00:00:00Z");
 
@@ -107,14 +107,17 @@ describe("EventBufferService", () => {
         data: { old: true },
         timestamp: oldDate,
       });
-      
+
       service.bufferEvent("user-123", {
         event: DashboardEvent.PORTFOLIO_UPDATE,
         data: { new: true },
         timestamp: newDate,
       });
 
-      const events = service.getEventsSince("user-123", new Date("2024-01-01T12:00:00Z"));
+      const events = service.getEventsSince(
+        "user-123",
+        new Date("2024-01-01T12:00:00Z"),
+      );
 
       expect(events).toHaveLength(1);
       expect(events[0].data.new).toBe(true);
@@ -124,7 +127,7 @@ describe("EventBufferService", () => {
   describe("cleanupOldEvents", () => {
     it("should remove events older than threshold", () => {
       service.startBuffering("user-123", "client-456");
-      
+
       const oldDate = new Date(Date.now() - 10 * 60 * 1000); // 10 minutes ago
 
       service.bufferEvent("user-123", {
@@ -132,7 +135,7 @@ describe("EventBufferService", () => {
         data: { old: true },
         timestamp: oldDate,
       });
-      
+
       service.bufferEvent("user-123", {
         event: DashboardEvent.PORTFOLIO_UPDATE,
         data: { recent: true },
@@ -147,7 +150,7 @@ describe("EventBufferService", () => {
 
     it("should clean up user with all old events", () => {
       service.startBuffering("user-123", "client-456");
-      
+
       const oldDate = new Date(Date.now() - 10 * 60 * 1000);
 
       service.bufferEvent("user-123", {
@@ -166,10 +169,22 @@ describe("EventBufferService", () => {
     it("should return correct statistics", () => {
       service.startBuffering("user-1", "client-1");
       service.startBuffering("user-2", "client-2");
-      
-      service.bufferEvent("user-1", { event: DashboardEvent.PORTFOLIO_UPDATE, data: {}, timestamp: new Date() });
-      service.bufferEvent("user-1", { event: DashboardEvent.RISK_UPDATE, data: {}, timestamp: new Date() });
-      service.bufferEvent("user-2", { event: DashboardEvent.ALLOCATION_UPDATE, data: {}, timestamp: new Date() });
+
+      service.bufferEvent("user-1", {
+        event: DashboardEvent.PORTFOLIO_UPDATE,
+        data: {},
+        timestamp: new Date(),
+      });
+      service.bufferEvent("user-1", {
+        event: DashboardEvent.RISK_UPDATE,
+        data: {},
+        timestamp: new Date(),
+      });
+      service.bufferEvent("user-2", {
+        event: DashboardEvent.ALLOCATION_UPDATE,
+        data: {},
+        timestamp: new Date(),
+      });
 
       const stats = service.getStats();
 
@@ -196,7 +211,7 @@ describe("EventBufferService", () => {
   describe("buffer overflow", () => {
     it("should limit buffer size to maxEvents", () => {
       service.startBuffering("user-123", "client-456");
-      
+
       // Default maxEvents is 1000, but we'll test with internal limit
       for (let i = 0; i < 1500; i++) {
         service.bufferEvent("user-123", {
@@ -212,3 +227,6 @@ describe("EventBufferService", () => {
     });
   });
 });
+
+
+

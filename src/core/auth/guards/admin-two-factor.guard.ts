@@ -9,7 +9,7 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { EnhancedAuthService } from "../enhanced-auth.service";
-import { User } from "../../user/entities/user.entity";
+import { User } from "src/core/user/entities/user.entity";
 
 interface AuthenticatedPrincipal {
   id?: string;
@@ -105,3 +105,6 @@ export class AdminTwoFactorGuard implements CanActivate {
     return null;
   }
 }
+
+
+

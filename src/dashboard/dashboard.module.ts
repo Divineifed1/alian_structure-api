@@ -11,7 +11,10 @@ import { ConnectionManagerService } from "./websocket/services/connection-manage
 import { EventBufferService } from "./websocket/services/event-buffer.service";
 import { ConnectionPoolService } from "./websocket/services/connection-pool.service";
 import { DashboardMetricsService } from "./websocket/services/dashboard-metrics.service";
-import { ReconnectionService, WebSocketClientManager } from "./websocket/services/reconnection.service";
+import {
+  ReconnectionService,
+  WebSocketClientManager,
+} from "./websocket/services/reconnection.service";
 import { WebSocketHealthService } from "./websocket/services/websocket-health.service";
 import { WsExceptionFilter } from "./websocket/filters/ws-exception.filter";
 
@@ -21,7 +24,9 @@ import { WsExceptionFilter } from "./websocket/filters/ws-exception.filter";
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>("JWT_SECRET") || "default-secret-change-in-production",
+        secret:
+          configService.get<string>("JWT_SECRET") ||
+          "default-secret-change-in-production",
         signOptions: { expiresIn: "24h" },
       }),
     }),
@@ -29,10 +34,10 @@ import { WsExceptionFilter } from "./websocket/filters/ws-exception.filter";
   controllers: [DashboardController],
   providers: [
     DashboardService,
-    
+
     // WebSocket Gateway
     DashboardGateway,
-    
+
     // WebSocket Services
     ConnectionManagerService,
     EventBufferService,
@@ -41,7 +46,7 @@ import { WsExceptionFilter } from "./websocket/filters/ws-exception.filter";
     ReconnectionService,
     WebSocketClientManager,
     WebSocketHealthService,
-    
+
     // Filters
     WsExceptionFilter,
   ],
@@ -54,3 +59,6 @@ import { WsExceptionFilter } from "./websocket/filters/ws-exception.filter";
   ],
 })
 export class DashboardModule {}
+
+
+

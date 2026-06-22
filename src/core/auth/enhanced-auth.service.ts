@@ -17,7 +17,7 @@ import { v4 as uuidv4 } from "uuid";
 import * as speakeasy from "speakeasy";
 import * as qrcode from "qrcode";
 import { EmailService } from "./email.service";
-import { User } from "../../core/user/entities/user.entity";
+import { User } from "src/core/user/entities/user.entity";
 import {
   RefreshToken,
   TwoFactorAuth,
@@ -59,7 +59,12 @@ export class EnhancedAuthService {
     registerDto: RegisterDto,
     ipAddress: string,
     userAgent?: string,
-  ): Promise<{ accessToken: string; refreshToken: string; user: Partial<User>; requiresTwoFactor?: boolean }> {
+  ): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    user: Partial<User>;
+    requiresTwoFactor?: boolean;
+  }> {
     const { email, password, username, referralCode } = registerDto;
 
     // Check if user already exists
@@ -642,3 +647,6 @@ export class EnhancedAuthService {
     return this.userRepository.findOne({ where: { id: userId } });
   }
 }
+
+
+

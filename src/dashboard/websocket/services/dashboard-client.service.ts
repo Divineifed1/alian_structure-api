@@ -5,17 +5,20 @@
 
 import { Injectable, Logger } from "@nestjs/common";
 import { io, Socket } from "socket.io-client";
-import { DashboardEvent, BufferedEvent } from "../interfaces/websocket.interfaces";
+import {
+  DashboardEvent,
+  BufferedEvent,
+} from "../interfaces/websocket.interfaces";
 
 export interface ClientConfig {
   url: string;
   token: string;
   userId: string;
   autoReconnect?: boolean;
-  maxReconnectDelay?: number;  // Maximum 30 seconds as per requirement
+  maxReconnectDelay?: number; // Maximum 30 seconds as per requirement
   baseReconnectDelay?: number;
-  heartbeatInterval?: number;  // 30 seconds as per requirement
-  staleThreshold?: number;     // 5 minutes as per requirement
+  heartbeatInterval?: number; // 30 seconds as per requirement
+  staleThreshold?: number; // 5 minutes as per requirement
 }
 
 export interface ConnectionState {
@@ -32,21 +35,21 @@ export interface EventHandler {
 @Injectable()
 export class DashboardClientService {
   private readonly logger = new Logger(DashboardClientService.name);
-  
+
   private socket: Socket | null = null;
   private config: ClientConfig;
   private eventHandlers: Map<string, Set<EventHandler>> = new Map();
-  
+
   // Reconnection state
   private reconnectAttempts: number = 0;
   private currentReconnectDelay: number;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private isReconnecting: boolean = false;
-  
+
   // Buffer for events during disconnection
   private eventBuffer: BufferedEvent[] = [];
   private maxBufferSize: number = 1000;
-  
+
   // Connection state
   private connectionState: ConnectionState = {
     status: "disconnected",
@@ -54,13 +57,13 @@ export class DashboardClientService {
     lastConnected: null,
     lastDisconnected: null,
   };
-  
+
   // Configuration defaults
   private readonly defaultConfig = {
     autoReconnect: true,
-    maxReconnectDelay: 30000,   // 30 seconds max as per requirement
-    baseReconnectDelay: 1000,   // Start with 1 second
-    heartbeatInterval: 30000,   // 30 seconds as per requirement
+    maxReconnectDelay: 30000, // 30 seconds max as per requirement
+    baseReconnectDelay: 1000, // Start with 1 second
+    heartbeatInterval: 30000, // 30 seconds as per requirement
     staleThreshold: 5 * 60 * 1000, // 5 minutes as per requirement
     backoffFactor: 2,
   };
@@ -117,7 +120,7 @@ export class DashboardClientService {
       this.reconnectAttempts = 0;
       this.currentReconnectDelay = this.config.baseReconnectDelay || 1000;
       this.isReconnecting = false;
-      
+
       // Send buffered events to server for replay
       this.requestEventReplay();
     });
@@ -126,7 +129,7 @@ export class DashboardClientService {
       this.logger.warn(`WebSocket disconnected: ${reason}`);
       this.connectionState.lastDisconnected = new Date();
       this.connectionState.status = "disconnected";
-      
+
       // Only auto-reconnect if not intentionally disconnected
       if (reason !== "io client disconnect" && this.config.autoReconnect) {
         this.startReconnection();
@@ -136,7 +139,7 @@ export class DashboardClientService {
     this.socket.on("connect_error", (error: Error) => {
       this.logger.error(`Connection error: ${error.message}`);
       this.connectionState.status = "disconnected";
-      
+
       if (this.config.autoReconnect) {
         this.handleConnectionFailure();
       }
@@ -144,8 +147,10 @@ export class DashboardClientService {
 
     // Handle reconnection success with missed events
     this.socket.on(DashboardEvent.RECONNECTION_SUCCESS, (data: any) => {
-      this.logger.log(`Reconnected, received ${data.missedEvents} missed events`);
-      
+      this.logger.log(
+        `Reconnected, received ${data.missedEvents} missed events`,
+      );
+
       // Process missed events
       if (data.events && Array.isArray(data.events)) {
         for (const evt of data.events) {
@@ -172,7 +177,9 @@ export class DashboardClientService {
 
     // Handle subscription confirmed
     this.socket.on(DashboardEvent.SUBSCRIPTION_CONFIRMED, (data: any) => {
-      this.logger.debug(`Subscription confirmed for portfolio: ${data.portfolioId}`);
+      this.logger.debug(
+        `Subscription confirmed for portfolio: ${data.portfolioId}`,
+      );
     });
 
     // Handle error
@@ -220,7 +227,7 @@ export class DashboardClientService {
           since: lastDisconnected.toISOString(),
         });
       }
-      
+
       // Clear local buffer as server will handle replay
       this.eventBuffer = [];
     }
@@ -231,7 +238,7 @@ export class DashboardClientService {
    */
   private startReconnection(): void {
     if (this.isReconnecting) return;
-    
+
     this.isReconnecting = true;
     this.connectionState.status = "reconnecting";
     this.scheduleReconnect();
@@ -242,28 +249,30 @@ export class DashboardClientService {
    */
   private scheduleReconnect(): void {
     if (!this.config.autoReconnect) return;
-    
+
     this.reconnectAttempts++;
     this.connectionState.attempts = this.reconnectAttempts;
-    
+
     // Calculate delay with exponential backoff and jitter
     const jitter = Math.random() * 0.3 * this.currentReconnectDelay;
     const delay = Math.min(
       this.currentReconnectDelay + jitter,
-      this.config.maxReconnectDelay || 30000
+      this.config.maxReconnectDelay || 30000,
     );
-    
-    this.logger.log(`Reconnection attempt ${this.reconnectAttempts} in ${Math.round(delay)}ms`);
-    
+
+    this.logger.log(
+      `Reconnection attempt ${this.reconnectAttempts} in ${Math.round(delay)}ms`,
+    );
+
     this.reconnectTimer = setTimeout(() => {
       this.attemptReconnect();
     }, delay);
-    
+
     // Calculate next delay
     const factor = 2;
     this.currentReconnectDelay = Math.min(
       this.currentReconnectDelay * factor,
-      this.config.maxReconnectDelay || 30000
+      this.config.maxReconnectDelay || 30000,
     );
   }
 
@@ -307,13 +316,17 @@ export class DashboardClientService {
         return;
       }
 
-      this.socket.emit(DashboardEvent.SUBSCRIBE_PORTFOLIO, { portfolioId }, (response: any) => {
-        if (response.error) {
-          reject(new Error(response.error.message || response.error));
-        } else {
-          resolve();
-        }
-      });
+      this.socket.emit(
+        DashboardEvent.SUBSCRIBE_PORTFOLIO,
+        { portfolioId },
+        (response: any) => {
+          if (response.error) {
+            reject(new Error(response.error.message || response.error));
+          } else {
+            resolve();
+          }
+        },
+      );
     });
   }
 
@@ -327,13 +340,17 @@ export class DashboardClientService {
         return;
       }
 
-      this.socket.emit(DashboardEvent.UNSUBSCRIBE_PORTFOLIO, { portfolioId }, (response: any) => {
-        if (response.error) {
-          reject(new Error(response.error.message || response.error));
-        } else {
-          resolve();
-        }
-      });
+      this.socket.emit(
+        DashboardEvent.UNSUBSCRIBE_PORTFOLIO,
+        { portfolioId },
+        (response: any) => {
+          if (response.error) {
+            reject(new Error(response.error.message || response.error));
+          } else {
+            resolve();
+          }
+        },
+      );
     });
   }
 
@@ -346,7 +363,7 @@ export class DashboardClientService {
       data,
       timestamp: new Date(),
     });
-    
+
     // Limit buffer size
     if (this.eventBuffer.length > this.maxBufferSize) {
       this.eventBuffer.shift();
@@ -415,17 +432,17 @@ export class DashboardClientService {
    */
   disconnect(): void {
     this.config.autoReconnect = false; // Prevent auto-reconnect
-    
+
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    
+
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
     }
-    
+
     this.connectionState.status = "disconnected";
     this.eventBuffer = [];
     this.isReconnecting = false;
@@ -454,6 +471,11 @@ export class DashboardClientService {
 /**
  * Factory function to create DashboardClientService
  */
-export function createDashboardClient(config: ClientConfig): DashboardClientService {
+export function createDashboardClient(
+  config: ClientConfig,
+): DashboardClientService {
   return new DashboardClientService(config);
 }
+
+
+

@@ -1,10 +1,13 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
-import type Redis from 'ioredis';
-import { ComponentStatusDto, HealthResponseDto } from './dto/health-response.dto';
-import { HEALTH_REDIS_CLIENT } from './health.constants';
+import { Inject, Injectable, Optional } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { InjectDataSource } from "@nestjs/typeorm";
+import { DataSource } from "typeorm";
+import type Redis from "ioredis";
+import {
+  ComponentStatusDto,
+  HealthResponseDto,
+} from "./dto/health-response.dto";
+import { HEALTH_REDIS_CLIENT } from "./health.constants";
 
 @Injectable()
 export class HealthService {
@@ -13,18 +16,21 @@ export class HealthService {
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
-    @Optional() @Inject(HEALTH_REDIS_CLIENT) private readonly redis: Redis | null,
+    @Optional()
+    @Inject(HEALTH_REDIS_CLIENT)
+    private readonly redis: Redis | null,
   ) {
-    this.timeoutMs = this.configService.get<number>('HEALTH_CHECK_TIMEOUT_MS') ?? 5000;
+    this.timeoutMs =
+      this.configService.get<number>("HEALTH_CHECK_TIMEOUT_MS") ?? 5000;
   }
 
   getLiveness(): HealthResponseDto {
     return {
-      status: 'ok',
+      status: "ok",
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       components: {
-        application: { status: 'up' },
+        application: { status: "up" },
       },
     };
   }
@@ -40,11 +46,11 @@ export class HealthService {
       redis: redisStatus,
     };
 
-    const allUp = Object.values(components).every((c) => c.status === 'up');
-    const anyUp = Object.values(components).some((c) => c.status === 'up');
+    const allUp = Object.values(components).every((c) => c.status === "up");
+    const anyUp = Object.values(components).some((c) => c.status === "up");
 
     return {
-      status: allUp ? 'ok' : anyUp ? 'degraded' : 'error',
+      status: allUp ? "ok" : anyUp ? "degraded" : "error",
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       components,
@@ -57,10 +63,10 @@ export class HealthService {
     const components: Record<string, ComponentStatusDto> = {
       database: dbStatus,
       orm: {
-        status: this.dataSource.isInitialized ? 'up' : 'down',
+        status: this.dataSource.isInitialized ? "up" : "down",
         ...(this.dataSource.isInitialized
           ? {}
-          : { message: 'TypeORM DataSource not initialized' }),
+          : { message: "TypeORM DataSource not initialized" }),
       },
     };
 
@@ -68,10 +74,10 @@ export class HealthService {
       components.redis = await this.checkRedis();
     }
 
-    const allUp = Object.values(components).every((c) => c.status === 'up');
+    const allUp = Object.values(components).every((c) => c.status === "up");
 
     return {
-      status: allUp ? 'ok' : 'error',
+      status: allUp ? "ok" : "error",
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       components,
@@ -82,13 +88,13 @@ export class HealthService {
     const start = Date.now();
     try {
       await Promise.race([
-        this.dataSource.query('SELECT 1'),
-        this.rejectAfterTimeout('database'),
+        this.dataSource.query("SELECT 1"),
+        this.rejectAfterTimeout("database"),
       ]);
-      return { status: 'up', responseTime: Date.now() - start };
+      return { status: "up", responseTime: Date.now() - start };
     } catch (err: any) {
       return {
-        status: 'down',
+        status: "down",
         responseTime: Date.now() - start,
         message: err.message,
       };
@@ -97,18 +103,18 @@ export class HealthService {
 
   private async checkRedis(): Promise<ComponentStatusDto> {
     if (!this.redis) {
-      return { status: 'down', message: 'Redis not configured (REDIS_URL missing)' };
+      return {
+        status: "down",
+        message: "Redis not configured (REDIS_URL missing)",
+      };
     }
     const start = Date.now();
     try {
-      await Promise.race([
-        this.redis.ping(),
-        this.rejectAfterTimeout('redis'),
-      ]);
-      return { status: 'up', responseTime: Date.now() - start };
+      await Promise.race([this.redis.ping(), this.rejectAfterTimeout("redis")]);
+      return { status: "up", responseTime: Date.now() - start };
     } catch (err: any) {
       return {
-        status: 'down',
+        status: "down",
         responseTime: Date.now() - start,
         message: err.message,
       };
@@ -129,3 +135,6 @@ export class HealthService {
     );
   }
 }
+
+
+

@@ -17,8 +17,11 @@ import { User } from "../user/entities/user.entity";
 import { Wallet, WalletStatus, WalletType } from "./entities/wallet.entity";
 import { ConfigService } from "@nestjs/config";
 import { EmailService } from "./email.service";
-import { ProvenanceService } from "../../infrastructure/audit/provenance.service";
-import { ProvenanceAction, ProvenanceStatus } from "../../infrastructure/audit/entities/provenance-record.entity";
+import { ProvenanceService } from "src/infrastructure/audit/provenance.service";
+import {
+  ProvenanceAction,
+  ProvenanceStatus,
+} from "src/infrastructure/audit/entities/provenance-record.entity";
 
 export interface AuthPayload {
   address: string;
@@ -104,8 +107,13 @@ export class WalletAuthService {
       // If wallet is delegated, verify it has AUTHENTICATE permission
       if (wallet.type === WalletType.DELEGATED) {
         const perms = wallet.delegationPermissions || [];
-        if (!perms.includes("authenticate") && !perms.includes("AUTHENTICATE")) {
-          throw new UnauthorizedException("Delegated wallet does not have authenticate permission");
+        if (
+          !perms.includes("authenticate") &&
+          !perms.includes("AUTHENTICATE")
+        ) {
+          throw new UnauthorizedException(
+            "Delegated wallet does not have authenticate permission",
+          );
         }
       }
 
@@ -128,7 +136,11 @@ export class WalletAuthService {
         agentId: "wallet-auth",
         userId: userIdForAudit,
         action: ProvenanceAction.REQUEST_RECEIVED,
-        input: { address: normalized, method: "wallet_signature", success: true },
+        input: {
+          address: normalized,
+          method: "wallet_signature",
+          success: true,
+        },
         status: ProvenanceStatus.SUCCESS,
       });
 
@@ -140,11 +152,18 @@ export class WalletAuthService {
           agentId: "wallet-auth",
           userId: userIdForAudit,
           action: ProvenanceAction.REQUEST_RECEIVED,
-          input: { message: message || "", method: "wallet_signature", success: false, error: err?.message },
+          input: {
+            message: message || "",
+            method: "wallet_signature",
+            success: false,
+            error: err?.message,
+          },
           status: ProvenanceStatus.FAILED,
         });
       } catch (auditErr) {
-        this.logger.warn(`Failed to create provenance record for failed auth: ${auditErr.message}`);
+        this.logger.warn(
+          `Failed to create provenance record for failed auth: ${auditErr.message}`,
+        );
       }
 
       throw err;
@@ -268,9 +287,13 @@ export class WalletAuthService {
     });
 
     // Enforce per-account wallet limit
-    const maxWallets = Number(this.configService.get<number | string>("WALLETS_PER_ACCOUNT") || 10);
+    const maxWallets = Number(
+      this.configService.get<number | string>("WALLETS_PER_ACCOUNT") || 10,
+    );
     if (existingWallets.length >= maxWallets) {
-      throw new BadRequestException(`Wallet limit reached. Maximum allowed: ${maxWallets}`);
+      throw new BadRequestException(
+        `Wallet limit reached. Maximum allowed: ${maxWallets}`,
+      );
     }
 
     const isFirstWallet = existingWallets.length === 0;
@@ -286,7 +309,8 @@ export class WalletAuthService {
       status: WalletStatus.ACTIVE,
       isPrimary: isFirstWallet,
       name: walletName || `Wallet ${existingWallets.length + 1}`,
-      delegationPermissions: permissions && permissions.length > 0 ? permissions : undefined,
+      delegationPermissions:
+        permissions && permissions.length > 0 ? permissions : undefined,
       verificationSignature: signature,
       verificationChallenge: message,
       verifiedAt: new Date(),
@@ -305,7 +329,9 @@ export class WalletAuthService {
     }
 
     // Send email notification to user (if email exists)
-    const user = await this.userRepository.findOne({ where: { id: currentUserId } });
+    const user = await this.userRepository.findOne({
+      where: { id: currentUserId },
+    });
     if (user && user.email) {
       try {
         await this.emailService.sendMail({
@@ -314,7 +340,9 @@ export class WalletAuthService {
           html: `<p>Hello,</p><p>A new wallet <strong>${normalizedNew}</strong> was linked to your account.</p><p>If this wasn't you, please secure your account immediately.</p>`,
         });
       } catch (err) {
-        this.logger.warn(`Failed to send wallet-linked email to ${user.email}: ${err.message}`);
+        this.logger.warn(
+          `Failed to send wallet-linked email to ${user.email}: ${err.message}`,
+        );
       }
     }
 
@@ -335,7 +363,9 @@ export class WalletAuthService {
         userAgent: clientInfo?.userAgent,
       });
     } catch (err) {
-      this.logger.warn(`Failed to create provenance record for wallet link: ${err.message}`);
+      this.logger.warn(
+        `Failed to create provenance record for wallet link: ${err.message}`,
+      );
     }
     this.logger.log(
       `Wallet linked: ${normalizedNew} for user ${currentUserId}`,
@@ -520,3 +550,6 @@ export class WalletAuthService {
     };
   }
 }
+
+
+

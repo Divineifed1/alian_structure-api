@@ -1,4 +1,10 @@
-import { Module, NestModule, MiddlewareConsumer, OnModuleInit, Inject } from "@nestjs/common";
+import {
+  Module,
+  NestModule,
+  MiddlewareConsumer,
+  OnModuleInit,
+  Inject,
+} from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { join } from "path";
@@ -93,7 +99,7 @@ import { ProfilingMiddleware } from "./profiling/profiling.middleware";
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: join(__dirname, '..', '.env'),
+      envFilePath: join(__dirname, "..", ".env"),
       validate: async (config: Record<string, unknown>) => {
         const validatedConfig = plainToInstance(EnvironmentVariables, config, {
           enableImplicitConversion: true,
@@ -177,10 +183,10 @@ import { ProfilingMiddleware } from "./profiling/profiling.middleware";
 
     ThrottlerModule.forRoot({
       throttlers: [
-        { name: 'global',  ttl: 60_000, limit: 100 },
-        { name: 'auth',    ttl: 60_000, limit: 5   },
-        { name: 'trading', ttl: 60_000, limit: 20  },
-        { name: 'oracle',  ttl: 60_000, limit: 10  },
+        { name: "global", ttl: 60_000, limit: 100 },
+        { name: "auth", ttl: 60_000, limit: 5 },
+        { name: "trading", ttl: 60_000, limit: 20 },
+        { name: "oracle", ttl: 60_000, limit: 10 },
       ],
     }),
 
@@ -225,15 +231,26 @@ import { ProfilingMiddleware } from "./profiling/profiling.middleware";
   ],
 })
 export class AppModule implements NestModule, OnModuleInit {
-  constructor(@Inject(SubmissionVerifierService) private readonly verifier: SubmissionVerifierService) {}
+  constructor(
+    @Inject(SubmissionVerifierService)
+    private readonly verifier: SubmissionVerifierService,
+  ) {}
 
   configure(consumer: MiddlewareConsumer) {
     // Create LoggingMiddleware instance manually to fix dependency injection issue
     const loggingMiddleware = new LoggingMiddleware();
-    consumer.apply((req, res, next) => loggingMiddleware.use(req, res, next), ProfilingMiddleware).forRoutes('*');
+    consumer
+      .apply(
+        (req, res, next) => loggingMiddleware.use(req, res, next),
+        ProfilingMiddleware,
+      )
+      .forRoutes("*");
   }
 
   onModuleInit() {
     this.verifier.start();
   }
 }
+
+
+

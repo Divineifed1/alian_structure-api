@@ -13,9 +13,7 @@ describe("PortfolioConstraintService", () => {
     service = new PortfolioConstraintService();
   });
 
-  const createPortfolio = (
-    overrides: Partial<Portfolio> = {},
-  ): Portfolio =>
+  const createPortfolio = (overrides: Partial<Portfolio> = {}): Portfolio =>
     ({
       id: "portfolio-1",
       name: "Growth Portfolio",
@@ -106,9 +104,7 @@ describe("PortfolioConstraintService", () => {
     const result = service.evaluatePortfolio(portfolio, assets);
     expect(result.valid).toBe(false);
     expect(
-      result.violations.some(
-        (v) => v.code === "MAX_ASSET_ALLOCATION_EXCEEDED",
-      ),
+      result.violations.some((v) => v.code === "MAX_ASSET_ALLOCATION_EXCEEDED"),
     ).toBe(true);
   });
 
@@ -167,9 +163,7 @@ describe("PortfolioConstraintService", () => {
     const result = service.evaluatePortfolio(portfolio, assets);
     expect(result.valid).toBe(false);
     expect(
-      result.violations.some(
-        (v) => v.code === "MIN_DIVERSIFICATION_NOT_MET",
-      ),
+      result.violations.some((v) => v.code === "MIN_DIVERSIFICATION_NOT_MET"),
     ).toBe(true);
   });
 
@@ -247,8 +241,11 @@ describe("PortfolioConstraintService", () => {
     ];
 
     const result = service.evaluatePortfolio(portfolio, assets);
-    expect(result.warnings.some((v) => v.code === "RISK_SCORE_NEAR_LIMIT")).toBe(
-      true,
-    );
+    expect(
+      result.warnings.some((v) => v.code === "RISK_SCORE_NEAR_LIMIT"),
+    ).toBe(true);
   });
 });
+
+
+

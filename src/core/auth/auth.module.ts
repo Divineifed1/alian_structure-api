@@ -15,7 +15,7 @@ import { EmailLinkingService } from "./email-linking.service";
 import { RecoveryService } from "./recovery.service";
 import { SessionRecoveryService } from "./session-recovery.service";
 import { DelegationService } from "./delegation.service";
-import { AuditModule } from "../../infrastructure/audit/audit.module";
+import { AuditModule } from "src/infrastructure/audit/audit.module";
 import { StrategyAuthService } from "./strategy-auth.service";
 import { StrategyRegistry } from "./strategies/strategy.registry";
 import { WalletStrategy } from "./strategies/wallet/wallet.strategy";
@@ -68,7 +68,13 @@ import { RefreshToken, TwoFactorAuth } from "./entities/auth.entity";
         signOptions: { expiresIn: "15m" },
       }),
     }),
-    TypeOrmModule.forFeature([User, EmailVerification, Wallet, RefreshToken, TwoFactorAuth]),
+    TypeOrmModule.forFeature([
+      User,
+      EmailVerification,
+      Wallet,
+      RefreshToken,
+      TwoFactorAuth,
+    ]),
     AuditModule,
   ],
   controllers: [AuthController],
@@ -137,3 +143,6 @@ export class AuthModule implements OnModuleInit {
     this.strategyRegistry.register(this.apiKeyStrategy);
   }
 }
+
+
+

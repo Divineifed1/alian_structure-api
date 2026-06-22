@@ -98,7 +98,9 @@ describe("ConnectionManagerService", () => {
       service.updateHeartbeat("client-1");
 
       const result = service.getConnectionInfo("client-1");
-      expect(result?.lastHeartbeat.getTime()).toBeGreaterThan(originalTime.getTime());
+      expect(result?.lastHeartbeat.getTime()).toBeGreaterThan(
+        originalTime.getTime(),
+      );
     });
   });
 
@@ -138,7 +140,7 @@ describe("ConnectionManagerService", () => {
 
       // 5 minute threshold
       const stale = service.getStaleConnections(5 * 60 * 1000);
-      
+
       expect(stale.has("client-1")).toBe(true);
     });
 
@@ -155,7 +157,7 @@ describe("ConnectionManagerService", () => {
       await service.registerConnection("client-1", info);
 
       const stale = service.getStaleConnections(5 * 60 * 1000);
-      
+
       expect(stale.has("client-1")).toBe(false);
     });
   });
@@ -217,7 +219,7 @@ describe("ConnectionManagerService", () => {
 
       await service.registerConnection("client-1", info1);
       await service.registerConnection("client-2", info2);
-      
+
       service.subscribeToPortfolio("client-1", "portfolio-123");
       service.subscribeToPortfolio("client-2", "portfolio-123");
 
@@ -282,3 +284,6 @@ describe("ConnectionManagerService", () => {
     });
   });
 });
+
+
+

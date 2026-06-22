@@ -54,7 +54,9 @@ export class SubmitterService {
     // Initialize provider only if all required configuration is present
     const rpcUrl = this.configService.get<string>("ETH_RPC_URL");
     const privateKey = this.configService.get<string>("SUBMITTER_PRIVATE_KEY");
-    const contractAddress = this.configService.get<string>("ORACLE_CONTRACT_ADDRESS");
+    const contractAddress = this.configService.get<string>(
+      "ORACLE_CONTRACT_ADDRESS",
+    );
 
     if (!rpcUrl || !privateKey || !contractAddress) {
       this.logger.warn(
@@ -166,7 +168,9 @@ export class SubmitterService {
     payload: SignedPayload;
   }> {
     if (!this.provider || !this.submitterWallet || !this.oracleContract) {
-      throw new BadRequestException("SubmitterService is not configured. Blockchain features are disabled.");
+      throw new BadRequestException(
+        "SubmitterService is not configured. Blockchain features are disabled.",
+      );
     }
     // Fetch payload from database
     const payload = await this.payloadRepository.findOne({
@@ -693,3 +697,6 @@ export class SubmitterService {
     };
   }
 }
+
+
+

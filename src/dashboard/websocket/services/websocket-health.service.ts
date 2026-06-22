@@ -7,7 +7,7 @@ import { HealthCheckResult } from "../interfaces/websocket.interfaces";
 @Injectable()
 export class WebSocketHealthService {
   private readonly logger = new Logger(WebSocketHealthService.name);
-  
+
   private readonly startTime = Date.now();
 
   constructor(
@@ -28,8 +28,10 @@ export class WebSocketHealthService {
     let status: "healthy" | "degraded" | "unhealthy" = "healthy";
 
     // Check for issues
-    const stalePercent = stats.total > 0 ? (stats.stale / stats.total) * 100 : 0;
-    const activePercent = stats.total > 0 ? (stats.active / stats.total) * 100 : 100;
+    const stalePercent =
+      stats.total > 0 ? (stats.stale / stats.total) * 100 : 0;
+    const activePercent =
+      stats.total > 0 ? (stats.active / stats.total) * 100 : 100;
 
     if (stalePercent > 50 || activePercent < 50) {
       status = "unhealthy";
@@ -41,7 +43,9 @@ export class WebSocketHealthService {
     for (const pool of poolStats) {
       if (pool.utilizationPercent > 95) {
         status = "unhealthy";
-        this.logger.warn(`Pool ${pool.poolName} at ${pool.utilizationPercent}% utilization`);
+        this.logger.warn(
+          `Pool ${pool.poolName} at ${pool.utilizationPercent}% utilization`,
+        );
       } else if (pool.utilizationPercent > 80) {
         status = status === "unhealthy" ? status : "degraded";
       }
@@ -95,7 +99,9 @@ export class WebSocketHealthService {
    * Perform cleanup of stale connections
    */
   async performCleanup(): Promise<{ cleaned: number; timestamp: string }> {
-    const removed = this.connectionManager.cleanupInactiveConnections(5 * 60 * 1000);
+    const removed = this.connectionManager.cleanupInactiveConnections(
+      5 * 60 * 1000,
+    );
     const poolCleaned = this.connectionPool.cleanupStaleConnections();
     const bufferCleaned = this.eventBuffer.cleanupOldEvents(5 * 60 * 1000);
 
@@ -109,3 +115,6 @@ export class WebSocketHealthService {
     };
   }
 }
+
+
+

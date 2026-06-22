@@ -89,7 +89,8 @@ export class TransactionOptimizationService {
         error,
       );
       transaction.status = TransactionStatus.FAILED;
-      transaction.error_message = error instanceof Error ? error.message : String(error);
+      transaction.error_message =
+        error instanceof Error ? error.message : String(error);
       await this.transactionRepository.save(transaction);
       throw error;
     }
@@ -522,3 +523,6 @@ export interface NetworkConditions {
   networkCongestion: "low" | "moderate" | "high";
   avgBlockTime: number;
 }
+
+
+

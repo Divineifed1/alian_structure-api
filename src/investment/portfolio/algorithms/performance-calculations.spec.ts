@@ -90,9 +90,10 @@ describe("PerformanceCalculations", () => {
     });
 
     it("neutralises an end-of-period cash flow", () => {
-      expect(
-        PerformanceCalculations.subPeriodReturn(100, 120, 10),
-      ).toBeCloseTo(0.1, 10);
+      expect(PerformanceCalculations.subPeriodReturn(100, 120, 10)).toBeCloseTo(
+        0.1,
+        10,
+      );
     });
 
     it("returns 0 when the start value is zero", () => {
@@ -160,10 +161,7 @@ describe("PerformanceCalculations", () => {
       const returns = [0.1, -0.1, 0.1, -0.1];
       expect(
         PerformanceCalculations.annualizedVolatility(returns, 1),
-      ).toBeCloseTo(
-        PerformanceCalculations.standardDeviation(returns),
-        10,
-      );
+      ).toBeCloseTo(PerformanceCalculations.standardDeviation(returns), 10);
     });
 
     it("scales by sqrt(periodsPerYear)", () => {
@@ -186,9 +184,10 @@ describe("PerformanceCalculations", () => {
       const expected =
         PerformanceCalculations.mean(returns) /
         PerformanceCalculations.standardDeviation(returns);
-      expect(
-        PerformanceCalculations.sharpeRatio(returns, 0, 1),
-      ).toBeCloseTo(expected, 8);
+      expect(PerformanceCalculations.sharpeRatio(returns, 0, 1)).toBeCloseTo(
+        expected,
+        8,
+      );
     });
 
     it("honours a configurable risk-free rate", () => {
@@ -299,3 +298,6 @@ describe("PerformanceCalculations", () => {
     });
   });
 });
+
+
+

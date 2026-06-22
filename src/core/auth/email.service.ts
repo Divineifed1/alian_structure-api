@@ -130,7 +130,8 @@ export class EmailService {
   ): Promise<{ messageId: string; previewUrl?: string }> {
     const info = await this.transporter.sendMail({
       from:
-        process.env.EMAIL_FROM || '"alian-structure" <noreply@alian-structure.com>',
+        process.env.EMAIL_FROM ||
+        '"alian-structure" <noreply@alian-structure.com>',
       to: email,
       subject: "Account Recovery Information - alian-structure",
       html: `
@@ -315,3 +316,6 @@ export class EmailService {
     };
   }
 }
+
+
+
