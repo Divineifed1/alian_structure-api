@@ -52,6 +52,18 @@ export class ExecuteRebalancingDto {
   @IsOptional()
   @IsNumber()
   executionSlippage?: number;
+
+  @IsOptional()
+  dryRun?: boolean;
+}
+
+export class ScheduleRebalancingDto {
+  @IsEnum(["daily", "weekly", "monthly", "custom"])
+  frequency: "daily" | "weekly" | "monthly" | "custom";
+
+  @IsOptional()
+  @IsString()
+  cron?: string;
 }
 
 export class CancelRebalancingDto {

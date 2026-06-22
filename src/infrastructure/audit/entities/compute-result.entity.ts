@@ -8,7 +8,7 @@ import {
   ManyToOne,
   JoinColumn,
 } from "typeorm";
-import { User } from "../../../core/user/entities/user.entity";
+import { User } from "src/core/user/entities/user.entity";
 
 export enum ComputeResultStatus {
   PENDING = "pending",
@@ -49,7 +49,6 @@ export class ComputeResult {
    * Hash of the result for integrity verification
    */
   @Column({ type: "varchar", length: 66 })
-  @Index()
   resultHash: string;
 
   /**
@@ -131,3 +130,6 @@ export class ComputeResult {
   @UpdateDateColumn()
   updatedAt: Date;
 }
+
+
+

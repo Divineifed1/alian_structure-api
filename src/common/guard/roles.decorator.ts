@@ -1,7 +1,7 @@
-import { SetMetadata } from '@nestjs/common';
-import { Role } from './roles.enum';
+import { SetMetadata } from "@nestjs/common";
+import { Role } from "./roles.enum";
 
-export const ROLES_KEY = 'roles';
+export const ROLES_KEY = "roles";
 
 /**
  * Decorator that assigns required roles to a route handler.
@@ -25,3 +25,6 @@ export const Roles = (...roles: Role[]) => SetMetadata(ROLES_KEY, roles);
  * remove() { ... }
  */
 export const RequireRole = (...roles: Role[]) => SetMetadata(ROLES_KEY, roles);
+
+
+

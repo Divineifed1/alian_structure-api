@@ -27,7 +27,6 @@ export enum PayloadType {
  */
 @Entity("signed_payloads")
 @Index(["signerAddress", "status"])
-@Index(["payloadHash"], { unique: true })
 @Index(["transactionHash"])
 export class SignedPayload {
   @PrimaryGeneratedColumn("uuid")
@@ -142,3 +141,6 @@ export class SignedPayload {
   @Column({ type: "timestamp", nullable: true })
   confirmedAt: Date | null;
 }
+
+
+

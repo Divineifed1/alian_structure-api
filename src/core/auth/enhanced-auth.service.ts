@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   ConflictException,
   UnauthorizedException,
   BadRequestException,
@@ -10,17 +11,38 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import * as bcrypt from "bcrypt";
+import { randomBytes, createHash, timingSafeEqual } from "crypto";
 import { JwtService } from "@nestjs/jwt";
+import { v4 as uuidv4 } from "uuid";
 import * as speakeasy from "speakeasy";
 import * as qrcode from "qrcode";
 import { EmailService } from "./email.service";
-import { User } from "../../core/user/entities/user.entity";
-import { RefreshToken, TwoFactorAuth, TwoFactorType, TwoFactorStatus } from "./entities/auth.entity";
-import { LoginDto, RegisterDto, RefreshTokenDto, TwoFactorVerifyDto } from "./dto/auth.dto";
+import { User } from "src/core/user/entities/user.entity";
+import {
+  RefreshToken,
+  TwoFactorAuth,
+  TwoFactorType,
+  TwoFactorStatus,
+} from "./entities/auth.entity";
+import {
+  LoginDto,
+  RegisterDto,
+  RefreshTokenDto,
+  TwoFactorVerifyDto,
+} from "./dto/auth.dto";
 import { TwoFactorSetupDto } from "./dto/kyc.dto";
 
 @Injectable()
 export class EnhancedAuthService {
+  private readonly logger = new Logger(EnhancedAuthService.name);
+
+  /** Max consecutive failed 2FA attempts before the account is locked. */
+  private readonly MAX_2FA_ATTEMPTS = 5;
+  /** Duration of the 2FA lockout once the attempt limit is reached. */
+  private readonly LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+  /** Number of single-use backup codes issued per enablement. */
+  private readonly BACKUP_CODE_COUNT = 10;
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -37,8 +59,13 @@ export class EnhancedAuthService {
     registerDto: RegisterDto,
     ipAddress: string,
     userAgent?: string,
-  ): Promise<{ accessToken: string; refreshToken: string; user: Partial<User>; requiresTwoFactor?: boolean }> {
-    const { email, password, username } = registerDto;
+  ): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    user: Partial<User>;
+    requiresTwoFactor?: boolean;
+  }> {
+    const { email, password, username, referralCode } = registerDto;
 
     // Check if user already exists
     const existingUser = await this.userRepository.findOne({
@@ -58,6 +85,20 @@ export class EnhancedAuthService {
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+    // Generate unique referral code for the new user
+    const userReferralCode = uuidv4().substring(0, 8).toUpperCase();
+
+    // Check if a referral code was provided
+    let referredBy: User | null = null;
+    if (referralCode) {
+      referredBy = await this.userRepository.findOne({
+        where: { referralCode: referralCode.toUpperCase() },
+      });
+      if (!referredBy) {
+        throw new BadRequestException("Invalid referral code");
+      }
+    }
+
     // Create user
     const user = this.userRepository.create({
       email,
@@ -66,15 +107,14 @@ export class EnhancedAuthService {
       walletAddress: `email_${email}`, // Generate a pseudo wallet address for email users
       emailVerified: false,
       isActive: true,
+      referralCode: userReferralCode,
+      referredBy: referredBy || undefined,
     });
 
     await this.userRepository.save(user);
 
-    // Generate tokens
-    const tokens = await this.generateTokens(user, ipAddress, userAgent);
-
-    // Check if 2FA is required
-    const twoFactorEnabled = await this.isTwoFactorEnabled(user.id);
+    // A freshly registered account never has 2FA configured yet.
+    const tokens = await this.generateTokens(user, ipAddress, userAgent, true);
 
     return {
       accessToken: tokens.accessToken,
@@ -86,7 +126,7 @@ export class EnhancedAuthService {
         role: user.role,
         kycStatus: user.kycStatus,
       },
-      requiresTwoFactor: twoFactorEnabled,
+      requiresTwoFactor: false,
     };
   }
 
@@ -94,7 +134,12 @@ export class EnhancedAuthService {
     loginDto: LoginDto,
     ipAddress: string,
     userAgent?: string,
-  ): Promise<{ accessToken: string; refreshToken: string; user: Partial<User>; requiresTwoFactor?: boolean }> {
+  ): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    user: Partial<User>;
+    requiresTwoFactor?: boolean;
+  }> {
     const { email, password } = loginDto;
 
     // Find user by email
@@ -123,11 +168,16 @@ export class EnhancedAuthService {
     // Update last login
     await this.userRepository.update(user.id, { lastLoginAt: new Date() });
 
-    // Generate tokens
-    const tokens = await this.generateTokens(user, ipAddress, userAgent);
-
-    // Check if 2FA is required
+    // When 2FA is enabled the issued access token is NOT yet 2FA-verified: the
+    // client must complete POST /api/auth/2fa/verify to obtain a fully
+    // privileged token. Admin endpoints reject tokens that are not 2FA-verified.
     const twoFactorEnabled = await this.isTwoFactorEnabled(user.id);
+    const tokens = await this.generateTokens(
+      user,
+      ipAddress,
+      userAgent,
+      !twoFactorEnabled,
+    );
 
     return {
       accessToken: tokens.accessToken,
@@ -160,8 +210,16 @@ export class EnhancedAuthService {
       throw new UnauthorizedException("Invalid or expired refresh token");
     }
 
-    // Generate new tokens
-    const newTokens = await this.generateTokens(tokenEntity.user, ipAddress, userAgent);
+    // A refreshed access token is only 2FA-verified when the account has no 2FA
+    // configured; otherwise the holder must re-run 2FA before touching
+    // 2FA-gated (e.g. admin) endpoints.
+    const twoFactorEnabled = await this.isTwoFactorEnabled(tokenEntity.user.id);
+    const newTokens = await this.generateTokens(
+      tokenEntity.user,
+      ipAddress,
+      userAgent,
+      !twoFactorEnabled,
+    );
 
     // Revoke old refresh token
     await this.refreshTokenRepository.update(tokenEntity.id, {
@@ -191,29 +249,37 @@ export class EnhancedAuthService {
     });
 
     if (existing2FA) {
-      throw new BadRequestException("Two-factor authentication is already enabled");
+      throw new BadRequestException(
+        "Two-factor authentication is already enabled",
+      );
     }
 
     // Generate TOTP secret
     const secret = speakeasy.generateSecret({
-      name: `StellAIverse (${user.email})`,
-      issuer: "StellAIverse",
+      name: `alian-structure (${user.email})`,
+      issuer: "alian-structure",
     });
 
     // Generate QR code
     const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
 
-    // Generate backup codes
-    const backupCodes = this.generateBackupCodes();
+    // Generate backup codes — only the hashes are persisted; the plaintext set
+    // is returned to the user exactly once and can never be recovered after.
+    const { plaintext, hashed } = this.generateBackupCodes();
 
-    // Save 2FA setup
+    // Remove any stale pending/disabled record before creating a fresh one so a
+    // user can restart setup without hitting a unique-ish conflict.
+    await this.twoFactorRepository.delete({ userId, isEnabled: false });
+
     const twoFactor = this.twoFactorRepository.create({
       userId,
       type: TwoFactorType.TOTP,
       status: TwoFactorStatus.PENDING,
       secret: secret.base32,
-      backupCodes: JSON.stringify(backupCodes),
+      backupCodes: JSON.stringify(hashed),
       isEnabled: false,
+      failedAttempts: 0,
+      lockedUntil: null,
     });
 
     await this.twoFactorRepository.save(twoFactor);
@@ -221,7 +287,7 @@ export class EnhancedAuthService {
     return {
       secret: secret.base32,
       qrCodeUrl,
-      backupCodes,
+      backupCodes: plaintext,
     };
   }
 
@@ -250,7 +316,14 @@ export class EnhancedAuthService {
         status: TwoFactorStatus.VERIFIED,
         isEnabled: true,
         verifiedAt: new Date(),
+        failedAttempts: 0,
+        lockedUntil: null,
       });
+
+      const user = await this.userRepository.findOne({ where: { id: userId } });
+      if (user?.email) {
+        await this.notify2faChange(user.email, "enabled");
+      }
     }
 
     return { success: verified };
@@ -259,7 +332,43 @@ export class EnhancedAuthService {
   async verifyTwoFactorLogin(
     userId: string,
     verifyDto: TwoFactorVerifyDto,
+    clientInfo?: { ipAddress?: string; userAgent?: string },
   ): Promise<{ accessToken: string; refreshToken: string }> {
+    // Throws on lockout / invalid code; returns on success.
+    await this.verifyTwoFactorCode(userId, verifyDto);
+
+    // Get user and generate final, fully 2FA-verified tokens
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    const tokens = await this.generateTokens(
+      user,
+      clientInfo?.ipAddress ?? "0.0.0.0",
+      clientInfo?.userAgent ?? "2FA Verification",
+      true,
+    );
+
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
+  }
+
+  /**
+   * Verify a TOTP or backup code for an enabled 2FA record, enforcing account
+   * lockout after {@link MAX_2FA_ATTEMPTS} consecutive failures.
+   *
+   * Shared by the email/password and wallet login flows. Returns normally on
+   * success (resetting the failure counter) and throws on lockout or an invalid
+   * code (incrementing the counter, and locking the account when the limit is
+   * reached).
+   */
+  async verifyTwoFactorCode(
+    userId: string,
+    verifyDto: TwoFactorVerifyDto,
+  ): Promise<void> {
     const twoFactor = await this.twoFactorRepository.findOne({
       where: { userId, isEnabled: true },
     });
@@ -268,10 +377,20 @@ export class EnhancedAuthService {
       throw new BadRequestException("Two-factor authentication not enabled");
     }
 
+    // Enforce lockout window
+    if (twoFactor.lockedUntil && twoFactor.lockedUntil.getTime() > Date.now()) {
+      const minutes = Math.ceil(
+        (twoFactor.lockedUntil.getTime() - Date.now()) / 60000,
+      );
+      throw new UnauthorizedException(
+        `Account locked due to too many failed 2FA attempts. Try again in ${minutes} minute(s).`,
+      );
+    }
+
     let verified = false;
+    let usedBackupCode = false;
 
     if (verifyDto.code) {
-      // Verify TOTP code
       verified = speakeasy.totp.verify({
         secret: twoFactor.secret,
         encoding: "base32",
@@ -279,44 +398,121 @@ export class EnhancedAuthService {
         window: 2,
       });
     } else if (verifyDto.backupCode) {
-      // Verify backup code
-      const backupCodes = JSON.parse(twoFactor.backupCodes || "[]");
-      const codeIndex = backupCodes.indexOf(verifyDto.backupCode);
+      const storedHashes: string[] = JSON.parse(twoFactor.backupCodes || "[]");
+      const candidate = this.hashBackupCode(verifyDto.backupCode);
+      const matchIndex = storedHashes.findIndex((h) =>
+        this.safeEqual(h, candidate),
+      );
 
-      if (codeIndex !== -1) {
+      if (matchIndex !== -1) {
         verified = true;
-        // Remove used backup code
-        backupCodes.splice(codeIndex, 1);
-        await this.twoFactorRepository.update(twoFactor.id, {
-          backupCodes: JSON.stringify(backupCodes),
-        });
+        usedBackupCode = true;
+        // Consume the single-use backup code
+        storedHashes.splice(matchIndex, 1);
+        twoFactor.backupCodes = JSON.stringify(storedHashes);
       }
+    } else {
+      throw new BadRequestException("A TOTP code or backup code is required");
     }
 
     if (!verified) {
-      throw new UnauthorizedException("Invalid two-factor authentication code");
+      twoFactor.failedAttempts += 1;
+      let lockedMessage = "Invalid two-factor authentication code";
+
+      if (twoFactor.failedAttempts >= this.MAX_2FA_ATTEMPTS) {
+        twoFactor.lockedUntil = new Date(Date.now() + this.LOCKOUT_DURATION_MS);
+        twoFactor.failedAttempts = 0;
+        lockedMessage = `Account locked due to too many failed 2FA attempts. Try again in ${this.LOCKOUT_DURATION_MS / 60000} minutes.`;
+        this.logger.warn(`2FA lockout triggered for user ${userId}`);
+      }
+
+      await this.twoFactorRepository.save(twoFactor);
+      throw new UnauthorizedException(lockedMessage);
     }
 
-    // Update last used
-    await this.twoFactorRepository.update(twoFactor.id, {
-      lastUsedAt: new Date(),
-    });
+    // Success — reset counters and record usage
+    twoFactor.failedAttempts = 0;
+    twoFactor.lockedUntil = null;
+    twoFactor.lastUsedAt = new Date();
+    await this.twoFactorRepository.save(twoFactor);
 
-    // Get user and generate final tokens
+    if (usedBackupCode) {
+      this.logger.log(`Backup code consumed for user ${userId}`);
+    }
+  }
+
+  /**
+   * Regenerate the set of single-use backup codes (recovery for a lost device
+   * is still possible as long as the user has one unused code or their TOTP).
+   * Requires password re-authentication and invalidates all previous codes.
+   */
+  async regenerateBackupCodes(
+    userId: string,
+    password: string,
+  ): Promise<{ backupCodes: string[] }> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) {
+    if (!user || !user.password) {
       throw new NotFoundException("User not found");
     }
 
-    const tokens = await this.generateTokens(user, "127.0.0.1", "2FA Verification");
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException("Invalid password");
+    }
+
+    const twoFactor = await this.twoFactorRepository.findOne({
+      where: { userId, isEnabled: true },
+    });
+    if (!twoFactor) {
+      throw new BadRequestException("Two-factor authentication not enabled");
+    }
+
+    const { plaintext, hashed } = this.generateBackupCodes();
+    twoFactor.backupCodes = JSON.stringify(hashed);
+    await this.twoFactorRepository.save(twoFactor);
+
+    if (user.email) {
+      await this.notify2faChange(user.email, "backup-codes-regenerated");
+    }
+
+    return { backupCodes: plaintext };
+  }
+
+  /**
+   * Return the current 2FA status for a user (used by clients/admin UIs).
+   */
+  async getTwoFactorStatus(userId: string): Promise<{
+    enabled: boolean;
+    pending: boolean;
+    remainingBackupCodes: number;
+    lockedUntil: Date | null;
+  }> {
+    const records = await this.twoFactorRepository.find({ where: { userId } });
+    const enabledRecord = records.find((r) => r.isEnabled);
+    const pendingRecord = records.find(
+      (r) => !r.isEnabled && r.status === TwoFactorStatus.PENDING,
+    );
+
+    const remainingBackupCodes = enabledRecord
+      ? (JSON.parse(enabledRecord.backupCodes || "[]") as string[]).length
+      : 0;
 
     return {
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
+      enabled: !!enabledRecord,
+      pending: !!pendingRecord,
+      remainingBackupCodes,
+      lockedUntil:
+        enabledRecord?.lockedUntil &&
+        enabledRecord.lockedUntil.getTime() > Date.now()
+          ? enabledRecord.lockedUntil
+          : null,
     };
   }
 
-  async disableTwoFactor(userId: string, password: string): Promise<{ success: boolean }> {
+  async disableTwoFactor(
+    userId: string,
+    password: string,
+  ): Promise<{ success: boolean }> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user || !user.password) {
       throw new NotFoundException("User not found");
@@ -331,8 +527,17 @@ export class EnhancedAuthService {
     // Disable 2FA
     await this.twoFactorRepository.update(
       { userId },
-      { isEnabled: false, status: TwoFactorStatus.DISABLED },
+      {
+        isEnabled: false,
+        status: TwoFactorStatus.DISABLED,
+        failedAttempts: 0,
+        lockedUntil: null,
+      },
     );
+
+    if (user.email) {
+      await this.notify2faChange(user.email, "disabled");
+    }
 
     return { success: true };
   }
@@ -341,6 +546,7 @@ export class EnhancedAuthService {
     user: User,
     ipAddress: string,
     userAgent?: string,
+    twoFactorVerified = true,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     // Generate access token
     const payload = {
@@ -348,8 +554,9 @@ export class EnhancedAuthService {
       email: user.email,
       username: user.username,
       role: user.role,
+      twoFactorVerified,
     };
-    const accessToken = this.jwtService.sign(payload, { expiresIn: "15m" });
+    const accessToken = this.jwtService.sign(payload);
 
     // Generate refresh token
     const refreshTokenValue = this.generateRefreshToken();
@@ -370,18 +577,59 @@ export class EnhancedAuthService {
   }
 
   private generateRefreshToken(): string {
-    return require("crypto").randomBytes(64).toString("hex");
+    return randomBytes(64).toString("hex");
   }
 
-  private generateBackupCodes(): string[] {
-    const codes = [];
-    for (let i = 0; i < 10; i++) {
-      codes.push(require("crypto").randomBytes(4).toString("hex").toUpperCase());
+  /**
+   * Generate {@link BACKUP_CODE_COUNT} backup codes. Returns the plaintext set
+   * (shown to the user once) alongside their SHA-256 hashes (persisted).
+   */
+  private generateBackupCodes(): { plaintext: string[]; hashed: string[] } {
+    const plaintext: string[] = [];
+    const hashed: string[] = [];
+    for (let i = 0; i < this.BACKUP_CODE_COUNT; i++) {
+      // 8 hex chars, grouped as XXXX-XXXX for readability
+      const raw = randomBytes(4).toString("hex").toUpperCase();
+      const code = `${raw.slice(0, 4)}-${raw.slice(4)}`;
+      plaintext.push(code);
+      hashed.push(this.hashBackupCode(code));
     }
-    return codes;
+    return { plaintext, hashed };
   }
 
-  private async isTwoFactorEnabled(userId: string): Promise<boolean> {
+  private hashBackupCode(code: string): string {
+    const normalized = code.toUpperCase().replace(/[\s-]/g, "");
+    return createHash("sha256").update(normalized).digest("hex");
+  }
+
+  /** Constant-time comparison of two hex digest strings. */
+  private safeEqual(a: string, b: string): boolean {
+    const bufA = Buffer.from(a);
+    const bufB = Buffer.from(b);
+    if (bufA.length !== bufB.length) return false;
+    return timingSafeEqual(bufA, bufB);
+  }
+
+  /**
+   * Best-effort 2FA security alert. A mail failure must never roll back the
+   * security action that triggered it, so errors are logged and swallowed.
+   */
+  private async notify2faChange(
+    email: string,
+    event: "enabled" | "disabled" | "backup-codes-regenerated",
+  ): Promise<void> {
+    try {
+      await this.emailService.send2faChangeNotification(email, event);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to send 2FA "${event}" notification to ${email}: ${
+          (error as Error).message
+        }`,
+      );
+    }
+  }
+
+  async isTwoFactorEnabled(userId: string): Promise<boolean> {
     const twoFactor = await this.twoFactorRepository.findOne({
       where: { userId, isEnabled: true },
     });
@@ -399,3 +647,6 @@ export class EnhancedAuthService {
     return this.userRepository.findOne({ where: { id: userId } });
   }
 }
+
+
+

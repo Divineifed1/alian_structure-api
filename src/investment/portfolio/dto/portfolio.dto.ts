@@ -4,16 +4,9 @@ import {
   IsEnum,
   IsNumber,
   IsBoolean,
-  IsObject,
-  Min,
-  Max,
+  IsJSON,
 } from "class-validator";
-import {
-  PortfolioStatus,
-  PortfolioType,
-  AllocationStrategy,
-} from "../entities/portfolio.entity";
-
+import { PortfolioStatus } from "../entities/portfolio.entity";
 export class CreatePortfolioDto {
   @IsString()
   name: string;
@@ -132,3 +125,6 @@ export class PortfolioResponseDto {
   createdAt: Date;
   updatedAt: Date;
 }
+
+
+

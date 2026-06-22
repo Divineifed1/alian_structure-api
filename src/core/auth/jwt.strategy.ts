@@ -12,6 +12,7 @@ interface JwtPayload {
   username?: string;
   role?: string;
   jti?: string; // JWT ID for replay attack prevention
+  twoFactorVerified?: boolean; // whether 2FA was completed for this session
   iat?: number;
   exp?: number;
 }
@@ -22,7 +23,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private configService: ConfigService,
     private tokenBlacklist: TokenBlacklistService,
   ) {
-    const secret = configService.get<string>("JWT_SECRET") || process.env.JWT_SECRET || "your_jwt_secret_key_here";
+    const secret =
+      configService.get<string>("JWT_SECRET") ||
+      process.env.JWT_SECRET ||
+      "your_jwt_secret_key_here";
 
     if (!secret) {
       throw new Error("JWT_SECRET must be defined in environment variables");
@@ -61,10 +65,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (isTraditionalAuth) {
       return {
         id: payload.sub,
+        sub: payload.sub,
         email: payload.email,
         username: payload.username,
         role: payload.role || "user",
         jti: payload.jti,
+        twoFactorVerified: payload.twoFactorVerified ?? false,
         exp: payload.exp,
         type: "traditional",
       };
@@ -75,9 +81,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         role: payload.role || "user",
         roles: payload.role ? [payload.role] : ["user"],
         jti: payload.jti,
+        twoFactorVerified: payload.twoFactorVerified ?? false,
         exp: payload.exp,
         type: "wallet",
       };
     }
   }
 }
+
+
+

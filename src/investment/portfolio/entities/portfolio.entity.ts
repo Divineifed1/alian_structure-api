@@ -14,6 +14,7 @@ import { PortfolioAsset } from "./portfolio-asset.entity";
 import { OptimizationHistory } from "./optimization-history.entity";
 import { RebalancingEvent } from "./rebalancing-event.entity";
 import { PerformanceMetric } from "./performance-metric.entity";
+import { Transaction } from "./transaction.entity";
 import { User } from "src/core/user/entities/user.entity";
 
 export enum PortfolioStatus {
@@ -23,32 +24,21 @@ export enum PortfolioStatus {
 }
 
 export enum PortfolioType {
-  CONSERVATIVE = "conservative",
-  BALANCED = "balanced",
-  AGGRESSIVE = "aggressive",
-  INCOME = "income",
-  GROWTH = "growth",
-  RETIREMENT = "retirement",
-  CUSTOM = "custom",
-}
-
-export enum AllocationStrategy {
   MANUAL = "manual",
-  MODERN_PORTFOLIO_THEORY = "modern_portfolio_theory",
-  BLACK_LITTERMAN = "black_litterman",
-  RISK_PARITY = "risk_parity",
-  MIN_VARIANCE = "min_variance",
-  MAX_SHARPE = "max_sharpe",
-  CUSTOM = "custom",
+  AUTOMATED = "automated",
+  TRADING = "trading",
+  HODL = "hodl",
+  OTHER = "other",
 }
 
 @Entity("portfolios")
 @Index(["userId", "status"])
+@Index(["userId", "createdAt"])
 export class Portfolio {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @Column({ unique: true })
+  @Column()
   name: string;
 
   @Column({
@@ -60,6 +50,13 @@ export class Portfolio {
 
   @Column({ type: "text", nullable: true })
   description: string;
+
+  @Column({
+    type: "enum",
+    enum: PortfolioType,
+    default: PortfolioType.MANUAL,
+  })
+  type: PortfolioType;
 
   @Column({
     type: "enum",
@@ -77,6 +74,11 @@ export class Portfolio {
   @Column({ type: "decimal", precision: 18, scale: 2, default: 0 })
   totalValue: number;
 
+  // ROI calculation
+  @Column({ type: "decimal", precision: 10, scale: 4, nullable: true })
+  roi: number;
+
+  // Current allocation in JSON format
   @Column({ type: "jsonb", default: {} })
   currentAllocation: Record<string, number>;
 
@@ -119,6 +121,11 @@ export class Portfolio {
   })
   assets: PortfolioAsset[];
 
+  @OneToMany(() => Transaction, (tx) => tx.portfolio, {
+    cascade: true,
+  })
+  transactions: Transaction[];
+
   @OneToMany(() => OptimizationHistory, (history) => history.portfolio, {
     cascade: true,
   })
@@ -134,3 +141,6 @@ export class Portfolio {
   })
   performanceMetrics: PerformanceMetric[];
 }
+
+
+

@@ -15,8 +15,9 @@ import {
   AuthPayload,
   WalletCredentials,
 } from "../interfaces/auth-strategy.interface";
-import { ChallengeService } from "../../challenge.service";
-import { User } from "../../../user/entities/user.entity";
+import { ChallengeService } from "src/core/auth/challenge.service";
+import { User } from "src/core/user/entities/user.entity";
+import { Wallet } from "src/core/auth/entities/wallet.entity";
 
 /**
  * Wallet-based authentication strategy
@@ -33,6 +34,8 @@ export class WalletStrategy implements AuthStrategy {
     private readonly challengeService: ChallengeService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Wallet)
+    private readonly walletRepository: Repository<Wallet>,
   ) {}
 
   /**
@@ -83,10 +86,12 @@ export class WalletStrategy implements AuthStrategy {
       );
     }
 
-    // Fetch user to get email if linked
-    const user = await this.userRepository.findOne({
-      where: { walletAddress: recoveredAddress.toLowerCase() },
+    // Fetch wallet to get associated user and email if linked
+    const wallet = await this.walletRepository.findOne({
+      where: { address: recoveredAddress.toLowerCase() },
+      relations: ["user"],
     });
+    const user = wallet?.user;
 
     // Issue JWT token with email and role if available
     const payload: AuthPayload = {
@@ -97,7 +102,7 @@ export class WalletStrategy implements AuthStrategy {
       type: "wallet",
     };
 
-    const token = this.jwtService.sign(payload);
+    const token = this.jwtService.sign({ sub: user?.id, ...payload });
 
     this.logger.log(`Wallet authenticated: ${recoveredAddress.toLowerCase()}`);
 
@@ -126,3 +131,6 @@ export class WalletStrategy implements AuthStrategy {
     }
   }
 }
+
+
+

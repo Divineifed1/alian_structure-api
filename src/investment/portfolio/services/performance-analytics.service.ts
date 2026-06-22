@@ -1,9 +1,18 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { PerformanceMetric } from "../entities/performance-metric.entity";
 import { Portfolio } from "../entities/portfolio.entity";
-import { PortfolioAsset } from "../entities/portfolio-asset.entity";
+import { AssetType } from "../entities/portfolio-asset.entity";
+import { PerformanceCalculations } from "../algorithms/performance-calculations";
+import {
+  CalculatePerformanceDto,
+  PortfolioPerformanceDto,
+  PerformanceResponseDto,
+  AllocationResponseDto,
+  ComparisonResponseDto,
+  TimeRange,
+} from "../dto/performance.dto";
 
 @Injectable()
 export class PerformanceAnalyticsService {
@@ -15,6 +24,175 @@ export class PerformanceAnalyticsService {
     @InjectRepository(Portfolio)
     private portfolioRepository: Repository<Portfolio>,
   ) {}
+
+  /**
+   * Get the current total value of a portfolio.
+   */
+  async getPortfolioValue(
+    portfolioId: string,
+  ): Promise<{ totalValue: number }> {
+    const portfolio = await this.portfolioRepository.findOne({
+      where: { id: portfolioId },
+      relations: ["assets"],
+    });
+
+    if (!portfolio) {
+      throw new NotFoundException("Portfolio not found");
+    }
+
+    const totalValue = PerformanceCalculations.sum(
+      (portfolio.assets || []).map((a) => Number(a.value) || 0),
+    );
+
+    return { totalValue };
+  }
+
+  /**
+   * Map a granular asset type onto a high-level allocation category.
+   */
+  private mapAssetTypeToCategory(type: AssetType): string {
+    switch (type) {
+      case AssetType.CRYPTOCURRENCY:
+        return "crypto";
+      case AssetType.STOCK:
+      case AssetType.ETF:
+      case AssetType.MUTUAL_FUND:
+        return "stocks";
+      case AssetType.COMMODITY:
+        return "commodities";
+      case AssetType.BOND:
+        return "bonds";
+      case AssetType.REAL_ESTATE:
+        return "real_estate";
+      default:
+        return "other";
+    }
+  }
+
+  /**
+   * Compute a comprehensive set of portfolio performance metrics:
+   * total value, ROI, allocation by asset and category, time-weighted return,
+   * Sharpe ratio, max drawdown and (optionally) benchmark comparison.
+   */
+  async calculatePerformance(
+    portfolioId: string,
+    dto: CalculatePerformanceDto = {},
+  ): Promise<PortfolioPerformanceDto> {
+    const portfolio = await this.portfolioRepository.findOne({
+      where: { id: portfolioId },
+      relations: ["assets"],
+    });
+
+    if (!portfolio) {
+      throw new NotFoundException("Portfolio not found");
+    }
+
+    const assets = portfolio.assets || [];
+    const riskFreeRate = dto.riskFreeRate ?? 0.02;
+    const periodsPerYear =
+      dto.periodsPerYear ?? PerformanceCalculations.TRADING_DAYS_PER_YEAR;
+
+    // Total value and cost basis (decimal columns deserialize as strings).
+    const totalValue = PerformanceCalculations.sum(
+      assets.map((a) => Number(a.value) || 0),
+    );
+    const totalCostBasis = PerformanceCalculations.sum(
+      assets.map((a) => Number(a.costBasis) || 0),
+    );
+    const roi = PerformanceCalculations.roi(totalValue, totalCostBasis);
+
+    // Allocation by asset.
+    const assetAmounts: Record<string, number> = {};
+    for (const a of assets) {
+      assetAmounts[a.ticker] =
+        (assetAmounts[a.ticker] || 0) + (Number(a.value) || 0);
+    }
+    const allocationByAsset =
+      PerformanceCalculations.allocationPercentages(assetAmounts);
+
+    // Allocation by category (crypto, stocks, commodities, ...).
+    const categoryAmounts: Record<string, number> = {};
+    for (const a of assets) {
+      const category = this.mapAssetTypeToCategory(a.type);
+      categoryAmounts[category] =
+        (categoryAmounts[category] || 0) + (Number(a.value) || 0);
+    }
+    const allocationByCategory =
+      PerformanceCalculations.allocationPercentages(categoryAmounts);
+
+    // Historical value series for time-series metrics.
+    const metrics = await this.metricRepository.find({
+      where: { portfolioId },
+      order: { dateTime: "ASC" },
+    });
+    const values = metrics.map((m) => Number(m.portfolioValue));
+    const returns = PerformanceCalculations.simpleReturns(values);
+
+    const timeWeightedReturn =
+      PerformanceCalculations.timeWeightedReturn(returns);
+    const volatility = PerformanceCalculations.annualizedVolatility(
+      returns,
+      periodsPerYear,
+    );
+    const sharpeRatio = PerformanceCalculations.sharpeRatio(
+      returns,
+      riskFreeRate,
+      periodsPerYear,
+    );
+    const maxDrawdown = PerformanceCalculations.maxDrawdown(values);
+
+    let benchmark: PortfolioPerformanceDto["benchmark"];
+    if (dto.benchmarkReturns && dto.benchmarkReturns.length >= 2) {
+      benchmark = PerformanceCalculations.benchmarkComparison(
+        returns,
+        dto.benchmarkReturns,
+        riskFreeRate,
+        periodsPerYear,
+      );
+    }
+
+    return {
+      portfolioId: portfolio.id,
+      portfolioName: portfolio.name,
+      totalValue,
+      totalCostBasis,
+      roi,
+      allocationByAsset,
+      allocationByCategory,
+      timeWeightedReturn,
+      sharpeRatio,
+      volatility,
+      maxDrawdown,
+      benchmark,
+      dataPoints: values.length,
+      calculatedAt: new Date(),
+    };
+  }
+
+  /**
+   * Append a performance snapshot for a portfolio, deriving the previous value
+   * and daily return from the most recent recorded metric. Called whenever a
+   * portfolio's value/allocation changes so history stays current.
+   */
+  async recordSnapshot(
+    portfolioId: string,
+    portfolioValue: number,
+    allocation: Record<string, number>,
+  ): Promise<PerformanceMetric> {
+    const last = await this.metricRepository.findOne({
+      where: { portfolioId },
+      order: { dateTime: "DESC" },
+    });
+
+    const previousValue = last ? Number(last.portfolioValue) : undefined;
+
+    return this.recordMetrics(
+      portfolioId,
+      portfolioValue,
+      allocation,
+      previousValue,
+    );
+  }
 
   /**
    * Record performance metrics for a portfolio
@@ -301,4 +479,138 @@ export class PerformanceAnalyticsService {
 
     return attribution;
   }
+
+  private getStartDateFromTimeRange(timeRange: TimeRange): Date {
+    const now = new Date();
+    switch (timeRange) {
+      case TimeRange.ONE_MONTH:
+        return new Date(now.setMonth(now.getMonth() - 1));
+      case TimeRange.THREE_MONTHS:
+        return new Date(now.setMonth(now.getMonth() - 3));
+      case TimeRange.SIX_MONTHS:
+        return new Date(now.setMonth(now.getMonth() - 6));
+      case TimeRange.ONE_YEAR:
+        return new Date(now.setFullYear(now.getFullYear() - 1));
+      case TimeRange.ALL:
+      default:
+        return new Date(0);
+    }
+  }
+
+  async getPortfolioPerformance(
+    portfolioId: string,
+    timeRange: TimeRange,
+  ): Promise<PerformanceResponseDto> {
+    const startDate = this.getStartDateFromTimeRange(timeRange);
+    const [portfolio, returnPercentage, volatility, sharpeRatio, maxDrawdown] =
+      await Promise.all([
+        this.portfolioRepository.findOneBy({ id: portfolioId }),
+        this.calculateCumulativeReturn(portfolioId, startDate),
+        this.calculateVolatility(portfolioId),
+        this.calculateSharpeRatio(portfolioId),
+        this.calculateMaxDrawdown(portfolioId),
+      ]);
+
+    const totalValue =
+      portfolio?.assets?.reduce(
+        (sum, asset) => sum + asset.quantity * asset.currentPrice,
+        0,
+      ) || 0;
+    const now = new Date();
+
+    return {
+      portfolioId,
+      timeRange,
+      totalValue,
+      returnPercentage,
+      volatility,
+      sharpeRatio,
+      maxDrawdown,
+      timestamp: now,
+      calculationDate: now,
+    };
+  }
+
+  async getPortfolioAllocation(
+    portfolioId: string,
+  ): Promise<AllocationResponseDto> {
+    const portfolio = await this.portfolioRepository.findOne({
+      where: { id: portfolioId },
+      relations: ["assets"],
+    });
+
+    const totalValue =
+      portfolio?.assets?.reduce(
+        (sum, asset) => sum + asset.quantity * asset.currentPrice,
+        0,
+      ) || 0;
+    const assets =
+      portfolio?.assets?.map((asset) => ({
+        ticker: asset.ticker,
+        name: asset.name,
+        quantity: asset.quantity,
+        currentPrice: asset.currentPrice,
+        value: asset.quantity * asset.currentPrice,
+        percentage:
+          totalValue > 0
+            ? (asset.quantity * asset.currentPrice) / totalValue
+            : 0,
+      })) || [];
+    const now = new Date();
+
+    return {
+      portfolioId,
+      assets,
+      timestamp: now,
+      calculationDate: now,
+    };
+  }
+
+  async getPerformanceHistory(
+    portfolioId: string,
+    timeRange: TimeRange,
+  ): Promise<Array<{ date: Date; value: number; return: number }>> {
+    const startDate = this.getStartDateFromTimeRange(timeRange);
+    const metrics = await this.metricRepository.find({
+      where: {
+        portfolioId,
+        dateTime: startDate ? ({ $gte: startDate } as any) : undefined,
+      },
+      order: { dateTime: "ASC" },
+    });
+
+    if (metrics.length === 0) return [];
+
+    const firstValue = metrics[0].portfolioValue;
+    return metrics.map((metric) => ({
+      date: metric.dateTime,
+      value: metric.portfolioValue,
+      return: (metric.portfolioValue - firstValue) / firstValue,
+    }));
+  }
+
+  async getBenchmarkComparison(
+    portfolioId: string,
+    timeRange: TimeRange,
+  ): Promise<ComparisonResponseDto> {
+    const portfolioReturn = await this.calculateCumulativeReturn(
+      portfolioId,
+      this.getStartDateFromTimeRange(timeRange),
+    );
+    const benchmarkReturn = 0.08; // 8% annual benchmark return (placeholder)
+    const now = new Date();
+
+    return {
+      portfolioId,
+      timeRange,
+      portfolioReturn,
+      benchmarkReturn,
+      outperformance: portfolioReturn - benchmarkReturn,
+      timestamp: now,
+      calculationDate: now,
+    };
+  }
 }
+
+
+

@@ -9,8 +9,8 @@ import {
   ManyToOne,
   JoinColumn,
 } from "typeorm";
-import { ProvenanceRecord } from "../../../infrastructure/audit/entities/provenance-record.entity";
-import { Wallet } from "../../auth/entities/wallet.entity";
+import { ProvenanceRecord } from "src/infrastructure/audit/entities/provenance-record.entity";
+import { Wallet } from "src/core/auth/entities/wallet.entity";
 
 export enum UserRole {
   USER = "user",
@@ -32,15 +32,12 @@ export class User {
   id: string;
 
   @Column({ unique: true, nullable: true })
-  @Index()
   username: string | null;
 
   @Column({ unique: true, nullable: false })
-  @Index()
   walletAddress: string;
 
   @Column({ unique: true, nullable: true })
-  @Index()
   email: string | null;
 
   @Column({ nullable: true })
@@ -86,7 +83,6 @@ export class User {
   wallets: Wallet[];
 
   @Column({ unique: true, nullable: true })
-  @Index()
   referralCode: string | null;
 
   @Column({ nullable: true })
@@ -103,3 +99,6 @@ export class User {
   @OneToMany(() => User, (user) => user.referredBy)
   referrals: User[];
 }
+
+
+

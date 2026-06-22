@@ -24,8 +24,9 @@ import { RecoveryService } from "./recovery.service";
 import { SessionRecoveryService } from "./session-recovery.service";
 import { DelegationService, DelegationPermission } from "./delegation.service";
 import { JwtAuthGuard } from "./jwt.guard";
-import { AuthService } from "./auth.service";
-import { RegisterDto, LoginDto } from "./dto/auth.dto";
+import { EnhancedAuthService } from "./enhanced-auth.service";
+import { TokenBlacklistService } from "./token-blacklist.service";
+import { RegisterDto, LoginDto, TwoFactorVerifyDto } from "./dto/auth.dto";
 import { LinkEmailDto } from "./dto/link-email.dto";
 import { VerifyEmailDto } from "./dto/verify-email.dto";
 import { RequestRecoveryDto } from "./dto/request-recovery.dto";
@@ -33,9 +34,11 @@ import { LinkWalletDto } from "./dto/link-wallet.dto";
 import { UnlinkWalletDto } from "./dto/unlink-wallet.dto";
 import { RecoverWalletDto } from "./dto/recover-wallet.dto";
 import { Throttle } from "@nestjs/throttler";
-import { SensitiveRateLimit } from "../../common/decorators/rate-limit.decorator";
-import { Roles, Role } from "../../common/decorators/roles.decorator";
-import { RolesGuard } from "../../common/guard/roles.guard";
+import { SensitiveRateLimit } from "src/common/decorators/rate-limit.decorator";
+import { Roles, Role } from "src/common/decorators/roles.decorator";
+import { RolesGuard } from "src/common/guard/roles.guard";
+import { Public } from "src/common/decorators/public.decorator";
+import { AdminTwoFactorGuard } from "./guards/admin-two-factor.guard";
 
 export class RequestChallengeDto {
   @ApiProperty({
@@ -50,7 +53,7 @@ export class VerifySignatureDto {
   @ApiProperty({
     description: "Challenge message to sign",
     example:
-      "Sign this message to authenticate with StellAIverse at 2024-02-25T05:30:00.000Z",
+      "Sign this message to authenticate with alian-structure at 2024-02-25T05:30:00.000Z",
   })
   message: string;
 
@@ -63,13 +66,14 @@ export class VerifySignatureDto {
 }
 
 // Auth endpoints are high-value targets — enforce strict per-user/IP limit: 5 req/min
-@SensitiveRateLimit('auth')
+@SensitiveRateLimit("auth")
 @ApiTags("Authentication")
 @Throttle({ default: { ttl: 60000, limit: 10 } })
 @Controller("auth")
 export class AuthController {
   constructor(
-    private readonly authService: AuthService,
+    private readonly enhancedAuthService: EnhancedAuthService,
+    private readonly tokenBlacklistService: TokenBlacklistService,
     private readonly challengeService: ChallengeService,
     private readonly walletAuthService: WalletAuthService,
     private readonly emailLinkingService: EmailLinkingService,
@@ -95,7 +99,7 @@ export class AuthController {
         message: {
           type: "string",
           example:
-            "Sign this message to authenticate with StellAIverse at 2024-02-25T05:30:00.000Z",
+            "Sign this message to authenticate with alian-structure at 2024-02-25T05:30:00.000Z",
         },
         address: {
           type: "string",
@@ -123,15 +127,54 @@ export class AuthController {
   // Wallet Authentication Endpoints
 
   @Post("verify")
+  @ApiOperation({
+    summary: "Verify wallet signature",
+    description:
+      "Verify a signed challenge. If the account has 2FA enabled, returns " +
+      "{ requiresTwoFactor: true, userId } instead of a token; complete login " +
+      "via POST /auth/verify-2fa.",
+  })
   async verifySignature(@Body() dto: VerifySignatureDto) {
-    const result = await this.walletAuthService.verifySignatureAndIssueToken(
+    const result = (await this.walletAuthService.verifySignatureAndIssueToken(
       dto.message,
       dto.signature,
-    );
+    )) as {
+      token?: string;
+      address: string;
+      requiresTwoFactor?: boolean;
+      userId?: string;
+    };
+
+    if (result.requiresTwoFactor) {
+      return {
+        requiresTwoFactor: true,
+        userId: result.userId,
+        address: result.address,
+      };
+    }
+
     return {
       token: result.token,
       address: result.address,
     };
+  }
+
+  @Post("verify-2fa")
+  @ApiOperation({
+    summary: "Complete wallet login with 2FA",
+    description:
+      "Verify the TOTP or backup code for a 2FA-enabled wallet account and " +
+      "issue the authenticated wallet token.",
+  })
+  @ApiResponse({ status: 201, description: "2FA verified, token issued" })
+  @ApiResponse({ status: 401, description: "Invalid code or account locked" })
+  async verifyWalletTwoFactor(
+    @Body() dto: { userId: string } & TwoFactorVerifyDto,
+  ) {
+    return this.walletAuthService.verifyWalletTwoFactorAndIssueToken(
+      dto.userId,
+      { code: dto.code, backupCode: dto.backupCode },
+    );
   }
 
   // Email Linking Endpoints
@@ -190,6 +233,7 @@ export class AuthController {
       dto.message,
       dto.signature,
       dto.walletName,
+      dto.permissions,
       { ip: req.ip, userAgent: req.headers["user-agent"] },
     );
   }
@@ -367,10 +411,11 @@ export class AuthController {
     return this.delegationService.getWalletDelegations(walletId, userId);
   }
 
-  // Admin Endpoints (RBAC protected)
+  // Admin Endpoints (RBAC protected + mandatory 2FA for admins)
 
   @Roles(Role.ADMIN)
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, AdminTwoFactorGuard)
+  @ApiBearerAuth()
   @Get("admin/users")
   async listUsers() {
     // Example admin-only endpoint
@@ -378,7 +423,8 @@ export class AuthController {
   }
 
   @Roles(Role.ADMIN, Role.OPERATOR)
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, AdminTwoFactorGuard)
+  @ApiBearerAuth()
   @Get("admin/stats")
   async getStats() {
     // Example operator/admin endpoint
@@ -387,16 +433,25 @@ export class AuthController {
 
   // Traditional Auth Endpoints
 
+  @Public()
   @Post("register")
   @ApiOperation({ summary: "Register with email and password" })
-  async register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+  async register(@Body() dto: RegisterDto, @Request() req) {
+    return this.enhancedAuthService.register(
+      dto,
+      req.ip,
+      req.headers["user-agent"],
+    );
   }
 
   @Post("login")
   @ApiOperation({ summary: "Login with email and password" })
-  async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(@Body() dto: LoginDto, @Request() req) {
+    return this.enhancedAuthService.login(
+      dto,
+      req.ip,
+      req.headers["user-agent"],
+    );
   }
 
   @Post("logout")
@@ -404,10 +459,13 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Logout and invalidate current token" })
   async logout(@Request() req) {
-    const { jti, exp } = req.user;
+    const { jti, exp, sub: userId } = req.user;
+    // Revoke access token jti if it exists
     if (jti && exp) {
-      this.authService.logout(jti, exp);
+      this.tokenBlacklistService.revoke(jti, exp * 1000); // exp is in seconds, convert to ms
     }
+    // Revoke all refresh tokens for this user
+    await this.enhancedAuthService.revokeAllRefreshTokens(userId);
     return { message: "Logged out successfully" };
   }
 
@@ -416,6 +474,22 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Check authentication status" })
   async getStatus(@Request() req) {
-    return this.authService.getAuthStatus(req.user);
+    const user = await this.enhancedAuthService.validateUser(req.user.sub);
+    if (!user) {
+      return { isAuthenticated: false, user: null };
+    }
+    return {
+      isAuthenticated: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        referralCode: user.referralCode,
+      },
+    };
   }
 }
+
+
+

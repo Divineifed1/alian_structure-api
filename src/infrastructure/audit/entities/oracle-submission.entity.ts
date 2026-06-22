@@ -8,7 +8,7 @@ import {
   ManyToOne,
   JoinColumn,
 } from "typeorm";
-import { User } from "../../../core/user/entities/user.entity";
+import { User } from "src/core/user/entities/user.entity";
 
 export enum OracleSubmissionStatus {
   PENDING = "pending",
@@ -49,7 +49,6 @@ export class OracleSubmission {
    * Hash of the data for integrity verification
    */
   @Column({ type: "varchar", length: 66 })
-  @Index()
   dataHash: string;
 
   /**
@@ -145,3 +144,6 @@ export class OracleSubmission {
   @Index()
   expiresAt: Date | null;
 }
+
+
+

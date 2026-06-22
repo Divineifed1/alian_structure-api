@@ -7,7 +7,7 @@ import {
   ManyToOne,
   JoinColumn,
 } from "typeorm";
-import { User } from "../../../core/user/entities/user.entity";
+import { User } from "src/core/user/entities/user.entity";
 
 export enum ProvenanceStatus {
   PENDING = "pending",
@@ -33,7 +33,6 @@ export enum ProvenanceAction {
 @Index(["userId", "createdAt"])
 @Index(["status", "createdAt"])
 @Index(["action", "createdAt"])
-@Index(["onChainTxHash"])
 export class ProvenanceRecord {
   @PrimaryGeneratedColumn("uuid")
   id: string;
@@ -160,3 +159,6 @@ export class ProvenanceRecord {
   @Column({ type: "text", nullable: true })
   userAgent: string | null;
 }
+
+
+

@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  DeleteDateColumn,
   ManyToOne,
   JoinColumn,
   Index,
@@ -21,13 +22,26 @@ export enum AssetType {
   OTHER = "other",
 }
 
+export enum Chain {
+  ETHEREUM = "ethereum",
+  POLYGON = "polygon",
+  BINANCE = "binance",
+  SOLANA = "solana",
+  BITCOIN = "bitcoin",
+  ARBITRUM = "arbitrum",
+  OPTIMISM = "optimism",
+  BASE = "base",
+  OTHER = "other",
+}
+
 @Entity("portfolio_assets")
-@Index(["portfolioId", "ticker"])
+@Index(["portfolioId", "ticker", "chain"], { unique: true })
+@Index(["portfolioId", "chain"])
 export class PortfolioAsset {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @Column()
+  @Column({ length: 20 })
   ticker: string;
 
   @Column()
@@ -35,8 +49,15 @@ export class PortfolioAsset {
 
   @Column({
     type: "enum",
+    enum: Chain,
+    default: Chain.OTHER,
+  })
+  chain: Chain;
+
+  @Column({
+    type: "enum",
     enum: AssetType,
-    default: AssetType.STOCK,
+    default: AssetType.CRYPTOCURRENCY,
   })
   type: AssetType;
 
@@ -70,13 +91,13 @@ export class PortfolioAsset {
   @Column({ type: "decimal", precision: 5, scale: 4, nullable: true })
   beta: number; // Market beta
 
-  @Column({ type: "decimal", precision: 10, scale: 2, nullable: true })
+  @Column({ type: "decimal", precision: 18, scale: 2, nullable: true })
   costBasis: number;
 
-  @Column({ type: "decimal", precision: 10, scale: 2, nullable: true })
+  @Column({ type: "decimal", precision: 18, scale: 2, nullable: true })
   unrealizedGain: number;
 
-  @Column({ type: "decimal", precision: 10, scale: 2, nullable: true })
+  @Column({ type: "decimal", precision: 18, scale: 8, nullable: true })
   costBasisPerShare: number;
 
   // Historical data for ML models
@@ -96,6 +117,9 @@ export class PortfolioAsset {
   @UpdateDateColumn()
   updatedAt: Date;
 
+  @DeleteDateColumn()
+  deletedAt: Date;
+
   @Column({ nullable: true })
   lastPriceUpdate: Date;
 
@@ -109,3 +133,6 @@ export class PortfolioAsset {
   @Column("uuid")
   portfolioId: string;
 }
+
+
+

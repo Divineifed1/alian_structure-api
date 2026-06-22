@@ -1,8 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-} from "@nestjs/common";
+import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { IS_PUBLIC_KEY } from "../decorators/public.decorator";
 import { SKIP_KYC_KEY } from "../decorators/skip-kyc.decorator";
@@ -41,3 +37,6 @@ export class KycGuard implements CanActivate {
     return user?.kycVerified === true;
   }
 }
+
+
+

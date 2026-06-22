@@ -11,6 +11,7 @@ import { randomBytes } from "crypto";
 import { User } from "../user/entities/user.entity";
 import { EmailVerification } from "./entities/email-verification.entity";
 import { EmailService } from "./email.service";
+import { Wallet } from "./entities/wallet.entity";
 
 @Injectable()
 export class EmailLinkingService {
@@ -19,6 +20,8 @@ export class EmailLinkingService {
     private userRepository: Repository<User>,
     @InjectRepository(EmailVerification)
     private emailVerificationRepository: Repository<EmailVerification>,
+    @InjectRepository(Wallet)
+    private walletRepository: Repository<Wallet>,
     private emailService: EmailService,
   ) {}
 
@@ -40,35 +43,30 @@ export class EmailLinkingService {
     const normalizedWallet = walletAddress.toLowerCase();
     const normalizedEmail = email.toLowerCase();
 
-    // Check if email is already linked to another wallet
+    // Find wallet and user
+    const wallet = await this.walletRepository.findOne({
+      where: { address: normalizedWallet },
+      relations: ["user"],
+    });
+
+    if (!wallet) {
+      throw new NotFoundException("Wallet not found");
+    }
+
+    const user = wallet.user;
+
+    // Check if email is already linked to another user
     const existingEmailUser = await this.userRepository.findOne({
       where: { email: normalizedEmail },
     });
 
-    if (
-      existingEmailUser &&
-      existingEmailUser.walletAddress !== normalizedWallet
-    ) {
-      throw new ConflictException("Email is already linked to another wallet");
+    if (existingEmailUser && existingEmailUser.id !== user?.id) {
+      throw new ConflictException("Email is already linked to another account");
     }
 
-    // Find or create user
-    let user = await this.userRepository.findOne({
-      where: { walletAddress: normalizedWallet },
-    });
-
-    if (!user) {
-      user = this.userRepository.create({
-        walletAddress: normalizedWallet,
-        email: null,
-        emailVerified: false,
-      });
-      await this.userRepository.save(user);
-    }
-
-    // Check if email is already verified for this wallet
-    if (user.email === normalizedEmail && user.emailVerified) {
-      throw new ConflictException("Email is already verified for this wallet");
+    // Check if email is already verified for this user
+    if (user && user.email === normalizedEmail && user.emailVerified) {
+      throw new ConflictException("Email is already verified for this account");
     }
 
     // Generate verification token (32 bytes = 64 hex characters)
@@ -124,14 +122,17 @@ export class EmailLinkingService {
       throw new UnauthorizedException("Verification token has expired");
     }
 
-    // Find user
-    const user = await this.userRepository.findOne({
-      where: { walletAddress: verification.walletAddress },
+    // Find wallet and its user
+    const wallet = await this.walletRepository.findOne({
+      where: { address: verification.walletAddress },
+      relations: ["user"],
     });
 
-    if (!user) {
+    if (!wallet || !wallet.user) {
       throw new NotFoundException("User not found");
     }
+
+    const user = wallet.user;
 
     // Update user with verified email
     user.email = verification.email;
@@ -158,12 +159,12 @@ export class EmailLinkingService {
   }> {
     const normalizedWallet = walletAddress.toLowerCase();
 
-    const user = await this.userRepository.findOne({
-      where: { walletAddress: normalizedWallet },
+    const wallet = await this.walletRepository.findOne({
+      where: { address: normalizedWallet },
+      relations: ["user"],
     });
 
-    if (!user) {
-      // Return default info for wallets without linked email
+    if (!wallet || !wallet.user) {
       return {
         walletAddress: normalizedWallet,
         email: null,
@@ -172,9 +173,9 @@ export class EmailLinkingService {
     }
 
     return {
-      walletAddress: user.walletAddress,
-      email: user.email,
-      emailVerified: user.emailVerified,
+      walletAddress: wallet.address,
+      email: wallet.user.email,
+      emailVerified: wallet.user.emailVerified,
     };
   }
 
@@ -183,28 +184,26 @@ export class EmailLinkingService {
    */
   async unlinkEmail(walletAddress: string): Promise<{ message: string }> {
     const normalizedWallet = walletAddress.toLowerCase();
-
-    const user = await this.userRepository.findOne({
-      where: { walletAddress: normalizedWallet },
+    const wallet = await this.walletRepository.findOne({
+      where: { address: normalizedWallet },
+      relations: ["user"],
     });
 
-    if (!user || !user.email) {
+    if (!wallet || !wallet.user || !wallet.user.email) {
       throw new NotFoundException("No email linked to this wallet");
     }
 
-    // Remove email
-    user.email = null;
-    user.emailVerified = false;
-    await this.userRepository.save(user);
+    // Remove email from user
+    wallet.user.email = null;
+    wallet.user.emailVerified = false;
+    await this.userRepository.save(wallet.user);
 
     // Delete any pending verifications
     await this.emailVerificationRepository.delete({
       walletAddress: normalizedWallet,
     });
 
-    return {
-      message: "Email successfully unlinked from wallet",
-    };
+    return { message: "Email successfully unlinked from wallet" };
   }
 
   /**
@@ -217,3 +216,6 @@ export class EmailLinkingService {
     });
   }
 }
+
+
+

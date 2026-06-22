@@ -1,9 +1,9 @@
 export enum Role {
-  USER = 'USER',
-  OPERATOR = 'OPERATOR',
-  ADMIN = 'ADMIN',
-  GOVERNANCE_OPERATOR = 'GOVERNANCE_OPERATOR',
-  KYC_OPERATOR = 'KYC_OPERATOR',
+  USER = "USER",
+  OPERATOR = "OPERATOR",
+  ADMIN = "ADMIN",
+  GOVERNANCE_OPERATOR = "GOVERNANCE_OPERATOR",
+  KYC_OPERATOR = "KYC_OPERATOR",
 }
 
 /**
@@ -55,3 +55,6 @@ export function hasRole(candidate: Role, required: Role): boolean {
 
   return candidateIdx >= requiredIdx;
 }
+
+
+

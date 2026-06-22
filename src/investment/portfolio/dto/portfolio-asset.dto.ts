@@ -1,11 +1,27 @@
-import { IsString, IsOptional, IsNumber, IsDateString } from "class-validator";
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsEnum,
+  Length,
+  IsBoolean,
+} from "class-validator";
+import { Chain, AssetType } from "../entities/portfolio-asset.entity";
 
 export class PortfolioAssetDto {
   @IsString()
+  @Length(3, 10)
   ticker: string;
 
   @IsString()
   name: string;
+
+  @IsEnum(Chain)
+  chain: Chain;
+
+  @IsOptional()
+  @IsEnum(AssetType)
+  type?: AssetType;
 
   @IsOptional()
   @IsNumber()
@@ -39,7 +55,47 @@ export class AddAssetToPortfolioDto {
   costBasis?: number;
 }
 
-export class UpdatePortfolioAssetDto {
+export class ConstraintOverrideDto {
+  @IsOptional()
+  @IsBoolean()
+  overrideConstraints?: boolean;
+
+  @IsOptional()
+  @IsString()
+  overrideReason?: string;
+
+  @IsOptional()
+  @IsString()
+  acknowledgedBy?: string;
+}
+
+export class AddHoldingDto extends ConstraintOverrideDto {
+  @IsString()
+  @Length(3, 10)
+  ticker: string;
+
+  @IsString()
+  name: string;
+
+  @IsEnum(Chain)
+  chain: Chain;
+
+  @IsOptional()
+  @IsEnum(AssetType)
+  type?: AssetType;
+
+  @IsNumber()
+  quantity: number;
+
+  @IsOptional()
+  @IsNumber()
+  currentPrice?: number;
+
+  @IsNumber()
+  costBasis: number;
+}
+
+export class UpdateHoldingDto extends ConstraintOverrideDto {
   @IsOptional()
   @IsNumber()
   quantity?: number;
@@ -57,7 +113,8 @@ export class PortfolioAssetResponseDto {
   id: string;
   ticker: string;
   name: string;
-  type: string;
+  chain: Chain;
+  type: AssetType;
   quantity: number;
   currentPrice?: number;
   value: number;
@@ -66,6 +123,10 @@ export class PortfolioAssetResponseDto {
   expectedReturn?: number;
   volatility?: number;
   beta?: number;
+  costBasis?: number;
   unrealizedGain?: number;
   updatedAt: Date;
 }
+
+
+

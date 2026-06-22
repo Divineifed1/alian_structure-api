@@ -13,7 +13,13 @@ import {
   HttpCode,
   HttpStatus,
 } from "@nestjs/common";
-import { ApiTags, ApiBearerAuth, ApiOperation } from "@nestjs/swagger";
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiOkResponse,
+} from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
 import { JwtAuthGuard } from "src/core/auth/jwt.guard";
 import { PortfolioService } from "./services/portfolio.service";
@@ -23,10 +29,25 @@ import { BacktestingService } from "./services/backtesting.service";
 import { MLPredictionService } from "./services/ml-prediction.service";
 import { PortfolioOwnerGuard } from "./guards/portfolio-owner.guard";
 import { CreatePortfolioDto, UpdatePortfolioDto } from "./dto/portfolio.dto";
-import { AddAssetToPortfolioDto } from "./dto/portfolio-asset.dto";
-import { ApproveOptimizationDto, CreateOptimizationDto } from "./dto/optimization.dto";
-import { ExecuteRebalancingDto, TriggerRebalancingDto } from "./dto/rebalancing.dto";
-import { GetPerformanceMetricsDto } from "./dto/performance.dto";
+import {
+  AddAssetToPortfolioDto,
+  AddHoldingDto,
+  UpdateHoldingDto,
+} from "./dto/portfolio-asset.dto";
+import {
+  ApproveOptimizationDto,
+  CreateOptimizationDto,
+} from "./dto/optimization.dto";
+import {
+  ExecuteRebalancingDto,
+  TriggerRebalancingDto,
+} from "./dto/rebalancing.dto";
+import {
+  GetPerformanceMetricsDto,
+  CalculatePerformanceDto,
+  TimeRange,
+  TimeRangeDto,
+} from "./dto/performance.dto";
 import { CreateBacktestDto } from "./dto/backtest.dto";
 
 @Controller("portfolio")
@@ -82,10 +103,44 @@ export class PortfolioController {
     return this.portfolioService.deletePortfolio(portfolioId);
   }
 
-  // Asset Management Endpoints
+  // Holding Management Endpoints
+
+  @Post("portfolios/:portfolioId/holdings")
+  @ApiOperation({ summary: "Add holding to portfolio" })
+  @UseGuards(PortfolioOwnerGuard)
+  async addHolding(
+    @Param("portfolioId") portfolioId: string,
+    @Body() dto: AddHoldingDto,
+  ) {
+    return this.portfolioService.addHolding(portfolioId, dto);
+  }
+
+  @Put("portfolios/:portfolioId/holdings/:holdingId")
+  @ApiOperation({ summary: "Update holding in portfolio" })
+  @UseGuards(PortfolioOwnerGuard)
+  async updateHolding(
+    @Param("portfolioId") portfolioId: string,
+    @Param("holdingId") holdingId: string,
+    @Body() dto: UpdateHoldingDto,
+  ) {
+    return this.portfolioService.updateHolding(portfolioId, holdingId, dto);
+  }
+
+  @Delete("portfolios/:portfolioId/holdings/:holdingId")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Remove holding from portfolio" })
+  @UseGuards(PortfolioOwnerGuard)
+  async removeHolding(
+    @Param("portfolioId") portfolioId: string,
+    @Param("holdingId") holdingId: string,
+  ) {
+    return this.portfolioService.removeHolding(portfolioId, holdingId);
+  }
+
+  // Asset Management Endpoints (Backward Compatibility)
 
   @Post("portfolios/:portfolioId/assets")
-  @ApiOperation({ summary: "Add asset to portfolio" })
+  @ApiOperation({ summary: "Add asset to portfolio (legacy)" })
   @UseGuards(PortfolioOwnerGuard)
   async addAsset(
     @Param("portfolioId") portfolioId: string,
@@ -196,6 +251,16 @@ export class PortfolioController {
     return this.rebalancingService.approveRebalancing(rebalancingId);
   }
 
+  @Put("portfolios/:portfolioId/target-allocations")
+  @ApiOperation({ summary: "Set target allocations for a portfolio" })
+  @UseGuards(PortfolioOwnerGuard)
+  async setTargetAllocations(
+    @Param("portfolioId") portfolioId: string,
+    @Body() allocations: { [ticker: string]: number },
+  ) {
+    return this.portfolioService.setTargetAllocation(portfolioId, allocations);
+  }
+
   @Post("rebalancing/:rebalancingId/execute")
   @ApiOperation({
     summary: "Execute approved rebalancing",
@@ -208,6 +273,7 @@ export class PortfolioController {
       rebalancingId,
       dto.actualCost,
       dto.executionSlippage,
+      dto.dryRun,
     );
   }
 
@@ -239,6 +305,19 @@ export class PortfolioController {
   @UseGuards(PortfolioOwnerGuard)
   async getPerformanceSummary(@Param("portfolioId") portfolioId: string) {
     return this.performanceService.getPerformanceSummary(portfolioId);
+  }
+
+  @Get("portfolios/:portfolioId/performance")
+  @ApiOperation({
+    summary:
+      "Calculate comprehensive portfolio performance (value, ROI, allocation, TWR, Sharpe, drawdown, benchmark)",
+  })
+  @UseGuards(PortfolioOwnerGuard)
+  async calculatePerformance(
+    @Param("portfolioId") portfolioId: string,
+    @Query() dto: CalculatePerformanceDto,
+  ) {
+    return this.performanceService.calculatePerformance(portfolioId, dto);
   }
 
   @Get("portfolios/:portfolioId/metrics")
@@ -357,4 +436,50 @@ export class PortfolioController {
   async getPredictorStats() {
     return this.mlService.getPredictorStats();
   }
+
+  @Get(":id/performance")
+  @ApiOperation({ summary: "Get portfolio performance metrics" })
+  @ApiQuery({ name: "timeRange", enum: TimeRange, required: false })
+  @UseGuards(JwtAuthGuard, PortfolioOwnerGuard)
+  async getPerformance(@Param("id") id: string, @Query() query: TimeRangeDto) {
+    return this.performanceService.getPortfolioPerformance(
+      id,
+      query.timeRange || TimeRange.ONE_YEAR,
+    );
+  }
+
+  @Get(":id/allocation")
+  @ApiOperation({ summary: "Get portfolio asset allocation" })
+  @UseGuards(JwtAuthGuard, PortfolioOwnerGuard)
+  async getAllocation(@Param("id") id: string) {
+    return this.performanceService.getPortfolioAllocation(id);
+  }
+
+  @Get(":id/performance-history")
+  @ApiOperation({ summary: "Get portfolio performance history" })
+  @ApiQuery({ name: "timeRange", enum: TimeRange, required: false })
+  @UseGuards(JwtAuthGuard, PortfolioOwnerGuard)
+  async getPerformanceHistory(
+    @Param("id") id: string,
+    @Query() query: TimeRangeDto,
+  ) {
+    return this.performanceService.getPerformanceHistory(
+      id,
+      query.timeRange || TimeRange.ONE_YEAR,
+    );
+  }
+
+  @Get(":id/comparison")
+  @ApiOperation({ summary: "Get portfolio benchmark comparison" })
+  @ApiQuery({ name: "timeRange", enum: TimeRange, required: false })
+  @UseGuards(JwtAuthGuard, PortfolioOwnerGuard)
+  async getComparison(@Param("id") id: string, @Query() query: TimeRangeDto) {
+    return this.performanceService.getBenchmarkComparison(
+      id,
+      query.timeRange || TimeRange.ONE_YEAR,
+    );
+  }
 }
+
+
+
