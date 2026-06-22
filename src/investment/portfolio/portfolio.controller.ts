@@ -235,6 +235,16 @@ export class PortfolioController {
     return this.rebalancingService.approveRebalancing(rebalancingId);
   }
 
+  @Put("portfolios/:portfolioId/target-allocations")
+  @ApiOperation({ summary: "Set target allocations for a portfolio" })
+  @UseGuards(PortfolioOwnerGuard)
+  async setTargetAllocations(
+    @Param("portfolioId") portfolioId: string,
+    @Body() allocations: { [ticker: string]: number },
+  ) {
+    return this.portfolioService.setTargetAllocation(portfolioId, allocations);
+  }
+
   @Post("rebalancing/:rebalancingId/execute")
   @ApiOperation({
     summary: "Execute approved rebalancing",
@@ -247,6 +257,7 @@ export class PortfolioController {
       rebalancingId,
       dto.actualCost,
       dto.executionSlippage,
+      dto.dryRun,
     );
   }
 
