@@ -9,7 +9,6 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { join } from "path";
 import { APP_GUARD } from "@nestjs/core";
-import { ThrottlerModule } from "@nestjs/throttler";
 import { EventEmitterModule } from "@nestjs/event-emitter";
 import { validate } from "class-validator";
 import { plainToInstance } from "class-transformer";
@@ -86,7 +85,7 @@ import { AlertPreference } from "./growth/alerts/entities/alert-preference.entit
 
 // Guards
 import { APP_FILTER } from "@nestjs/core";
-import { ThrottlerUserIpGuard } from "./common/guard/throttler.guard";
+import { QuotaGuard } from "./common/guard/quota.guard";
 import { RolesGuard } from "./common/guard/roles.guard";
 import { KycGuard } from "./common/guard/kyc.guard";
 import { StrategyAuthGuard } from "./core/auth/guards/strategy-auth.guard";
@@ -181,15 +180,6 @@ import { ProfilingMiddleware } from "./profiling/profiling.middleware";
 
     EventEmitterModule.forRoot(),
 
-    ThrottlerModule.forRoot({
-      throttlers: [
-        { name: "global", ttl: 60_000, limit: 100 },
-        { name: "auth", ttl: 60_000, limit: 5 },
-        { name: "trading", ttl: 60_000, limit: 20 },
-        { name: "oracle", ttl: 60_000, limit: 10 },
-      ],
-    }),
-
     AuthModule,
     UserModule,
     ProfileModule,
@@ -218,7 +208,7 @@ import { ProfilingMiddleware } from "./profiling/profiling.middleware";
     },
     {
       provide: APP_GUARD,
-      useClass: ThrottlerUserIpGuard,
+      useClass: QuotaGuard,
     },
     {
       provide: APP_GUARD,
@@ -251,6 +241,5 @@ export class AppModule implements NestModule, OnModuleInit {
     this.verifier.start();
   }
 }
-
 
 
