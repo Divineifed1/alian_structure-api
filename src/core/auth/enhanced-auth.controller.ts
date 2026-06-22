@@ -8,7 +8,7 @@ import {
   HttpCode,
   HttpStatus,
 } from "@nestjs/common";
-import { Public } from "../../common/decorators/public.decorator";
+import { Public } from "src/common/decorators/public.decorator";
 import {
   ApiTags,
   ApiOperation,
@@ -246,3 +246,6 @@ export class EnhancedAuthController {
     return this.enhancedAuthService.getTwoFactorStatus(req.user.sub);
   }
 }
+
+
+

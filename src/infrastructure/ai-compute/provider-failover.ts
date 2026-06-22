@@ -60,7 +60,10 @@ export class ProviderFailover {
 
   /** Effective circuit state at `nowMs` (lazily transitions OPEN -> HALF_OPEN after cooldown). */
   private effectiveState(p: ProviderState, nowMs: number): CircuitState {
-    if (p.state === CircuitState.OPEN && nowMs - p.openedAtMs >= this.cfg.cooldownMs) {
+    if (
+      p.state === CircuitState.OPEN &&
+      nowMs - p.openedAtMs >= this.cfg.cooldownMs
+    ) {
       p.state = CircuitState.HALF_OPEN;
     }
     return p.state;
@@ -158,12 +161,15 @@ export class ProviderFailover {
   }
 
   /** Snapshot for metrics (availability + load + breaker state per provider). */
-  metrics(nowMs: number = Date.now()): Record<string, {
-    state: CircuitState;
-    available: boolean;
-    inFlight: number;
-    consecutiveFailures: number;
-  }> {
+  metrics(nowMs: number = Date.now()): Record<
+    string,
+    {
+      state: CircuitState;
+      available: boolean;
+      inFlight: number;
+      consecutiveFailures: number;
+    }
+  > {
     const out: Record<string, any> = {};
     for (const p of this.providers.values()) {
       const st = this.effectiveState(p, nowMs);
@@ -177,3 +183,6 @@ export class ProviderFailover {
     return out;
   }
 }
+
+
+

@@ -46,19 +46,27 @@ export class AaveAdapter implements ProtocolAdapter {
   private initializeProviders() {
     this.providers.set(
       "ethereum",
-      new ethers.JsonRpcProvider(this.configService.get<string>("ETH_RPC_URL", "")),
+      new ethers.JsonRpcProvider(
+        this.configService.get<string>("ETH_RPC_URL", ""),
+      ),
     );
     this.providers.set(
       "arbitrum",
-      new ethers.JsonRpcProvider(this.configService.get<string>("ARB_RPC_URL", "")),
+      new ethers.JsonRpcProvider(
+        this.configService.get<string>("ARB_RPC_URL", ""),
+      ),
     );
     this.providers.set(
       "polygon",
-      new ethers.JsonRpcProvider(this.configService.get<string>("POLY_RPC_URL", "")),
+      new ethers.JsonRpcProvider(
+        this.configService.get<string>("POLY_RPC_URL", ""),
+      ),
     );
     this.providers.set(
       "optimism",
-      new ethers.JsonRpcProvider(this.configService.get<string>("OPT_RPC_URL", "")),
+      new ethers.JsonRpcProvider(
+        this.configService.get<string>("OPT_RPC_URL", ""),
+      ),
     );
   }
 
@@ -528,3 +536,6 @@ export class AaveAdapter implements ProtocolAdapter {
     return prices[token] || 0;
   }
 }
+
+
+

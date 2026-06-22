@@ -14,7 +14,7 @@ export enum TimeRange {
   THREE_MONTHS = "3m",
   SIX_MONTHS = "6m",
   ONE_YEAR = "1y",
-  ALL = "all"
+  ALL = "all",
 }
 
 export class TimeRangeDto {
@@ -177,3 +177,6 @@ export class ComparisonResponseDto {
   timestamp: Date;
   calculationDate: Date;
 }
+
+
+

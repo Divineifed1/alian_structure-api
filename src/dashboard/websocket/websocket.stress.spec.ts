@@ -10,16 +10,16 @@ import { EventBufferService } from "./services/event-buffer.service";
 import { ConnectionPoolService } from "./services/connection-pool.service";
 import { DashboardMetricsService } from "./services/dashboard-metrics.service";
 import { DashboardModule } from "../dashboard.module";
-import { AuthModule } from "../../core/auth/auth.module";
-import { UserModule } from "../../core/user/user.module";
+import { AuthModule } from "src/core/auth/auth.module";
+import { UserModule } from "src/core/user/user.module";
 import { JwtService } from "@nestjs/jwt";
 import { DashboardEvent } from "./interfaces/websocket.interfaces";
 
 interface StressTestConfig {
   clientCount: number;
-  expectedFailureRate: number;  // 0.01 = 1%
-  testDuration: number;         // ms
-  rampUpTime: number;           // ms
+  expectedFailureRate: number; // 0.01 = 1%
+  testDuration: number; // ms
+  rampUpTime: number; // ms
 }
 
 interface ClientStats {
@@ -49,17 +49,17 @@ class MockSocket {
   public id: string;
   public auth: any = {};
   public listeners: Map<string, Function[]> = new Map();
-  
+
   private reconnectAttempts: number = 0;
   private maxReconnectAttempts: number = 10;
   private baseDelay: number = 1000;
   private currentDelay: number = 1000;
   private maxDelay: number = 30000;
-  
+
   constructor(id: string, failRate: number = 0.01) {
     this.id = id;
     this.auth = { token: "test-token" };
-    
+
     // Simulate random connection failure
     if (Math.random() < failRate) {
       this.simulateFailure();
@@ -120,7 +120,8 @@ class MockSocket {
     this.currentDelay = delay;
 
     setTimeout(() => {
-      if (Math.random() > 0.01) { // 1% failure rate
+      if (Math.random() > 0.01) {
+        // 1% failure rate
         this.connected = true;
         this.emit("connect");
       } else if (this.reconnectAttempts < this.maxReconnectAttempts) {
@@ -141,21 +142,21 @@ describe("WebSocket Stress Tests", () => {
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [
-        DashboardModule,
-        AuthModule,
-        UserModule,
-      ],
+      imports: [DashboardModule, AuthModule, UserModule],
     }).compile();
 
     app = module.createNestApplication();
     await app.init();
 
     gateway = module.get<DashboardGateway>(DashboardGateway);
-    connectionManager = module.get<ConnectionManagerService>(ConnectionManagerService);
+    connectionManager = module.get<ConnectionManagerService>(
+      ConnectionManagerService,
+    );
     eventBuffer = module.get<EventBufferService>(EventBufferService);
     connectionPool = module.get<ConnectionPoolService>(ConnectionPoolService);
-    metricsService = module.get<DashboardMetricsService>(DashboardMetricsService);
+    metricsService = module.get<DashboardMetricsService>(
+      DashboardMetricsService,
+    );
     jwtService = module.get<JwtService>(JwtService);
   });
 
@@ -177,7 +178,7 @@ describe("WebSocket Stress Tests", () => {
 
       // Register 1000 connections
       const connections: Promise<void>[] = [];
-      
+
       for (let i = 0; i < clientCount; i++) {
         const promise = connectionManager.registerConnection(`client-${i}`, {
           userId: `user-${i}`,
@@ -193,10 +194,10 @@ describe("WebSocket Stress Tests", () => {
       await Promise.all(connections);
 
       const duration = Date.now() - startTime;
-      
+
       // Verify all connections registered
       expect(connectionManager.getConnectionCount()).toBe(clientCount);
-      
+
       console.log(`Registered ${clientCount} connections in ${duration}ms`);
     });
 
@@ -206,9 +207,10 @@ describe("WebSocket Stress Tests", () => {
 
       // Register connections with varying ages
       for (let i = 0; i < clientCount; i++) {
-        const lastHeartbeat = i < staleCount 
-          ? new Date(Date.now() - 10 * 60 * 1000) // 10 minutes ago - stale
-          : new Date(); // Now - not stale
+        const lastHeartbeat =
+          i < staleCount
+            ? new Date(Date.now() - 10 * 60 * 1000) // 10 minutes ago - stale
+            : new Date(); // Now - not stale
 
         await connectionManager.registerConnection(`client-${i}`, {
           userId: `user-${i}`,
@@ -227,7 +229,9 @@ describe("WebSocket Stress Tests", () => {
       expect(stale.size).toBe(staleCount);
       expect(duration).toBeLessThan(100); // Should complete in < 100ms
 
-      console.log(`Identified ${stale.size} stale connections in ${duration}ms`);
+      console.log(
+        `Identified ${stale.size} stale connections in ${duration}ms`,
+      );
     });
 
     it("should clean up inactive connections efficiently", async () => {
@@ -250,13 +254,17 @@ describe("WebSocket Stress Tests", () => {
       }
 
       const startTime = Date.now();
-      const removed = connectionManager.cleanupInactiveConnections(5 * 60 * 1000);
+      const removed = connectionManager.cleanupInactiveConnections(
+        5 * 60 * 1000,
+      );
       const duration = Date.now() - startTime;
 
       expect(removed.length).toBe(clientCount / 2);
       expect(duration).toBeLessThan(200);
 
-      console.log(`Cleaned up ${removed.length} inactive connections in ${duration}ms`);
+      console.log(
+        `Cleaned up ${removed.length} inactive connections in ${duration}ms`,
+      );
     });
   });
 
@@ -269,7 +277,7 @@ describe("WebSocket Stress Tests", () => {
 
       for (let i = 0; i < userCount; i++) {
         eventBuffer.startBuffering(`user-${i}`, `client-${i}`);
-        
+
         for (let j = 0; j < eventsPerUser; j++) {
           eventBuffer.bufferEvent(`user-${i}`, {
             event: DashboardEvent.PORTFOLIO_UPDATE,
@@ -286,7 +294,9 @@ describe("WebSocket Stress Tests", () => {
       expect(stats.totalEvents).toBe(userCount * eventsPerUser);
       expect(duration).toBeLessThan(5000);
 
-      console.log(`Buffered ${stats.totalEvents} events for ${stats.totalUsers} users in ${duration}ms`);
+      console.log(
+        `Buffered ${stats.totalEvents} events for ${stats.totalUsers} users in ${duration}ms`,
+      );
     });
 
     it("should retrieve buffered events efficiently", async () => {
@@ -329,18 +339,20 @@ describe("WebSocket Stress Tests", () => {
 
       // Try to acquire 150 connections (should only get 100)
       const connections = await Promise.all(
-        Array.from({ length: 150 }, (_, i) => 
-          connectionPool.acquire(poolName, `http://service-${i}.local`)
-        )
+        Array.from({ length: 150 }, (_, i) =>
+          connectionPool.acquire(poolName, `http://service-${i}.local`),
+        ),
       );
 
-      const validConnections = connections.filter(c => c !== null);
+      const validConnections = connections.filter((c) => c !== null);
       const stats = connectionPool.getPoolStats(poolName);
 
       expect(validConnections.length).toBeLessThanOrEqual(100);
       expect(stats?.totalConnections).toBeLessThanOrEqual(100);
 
-      console.log(`Pool ${poolName}: ${stats?.totalConnections}/${stats?.maxConnections} connections`);
+      console.log(
+        `Pool ${poolName}: ${stats?.totalConnections}/${stats?.maxConnections} connections`,
+      );
     });
   });
 
@@ -386,7 +398,10 @@ describe("WebSocket Stress Tests", () => {
 
       // Simulate connection for all clients
       for (let i = 0; i < config.clientCount; i++) {
-        const client = new MockSocket(`client-${i}`, config.expectedFailureRate);
+        const client = new MockSocket(
+          `client-${i}`,
+          config.expectedFailureRate,
+        );
         mockClients.push(client);
 
         if (client.connected) {
@@ -399,11 +414,12 @@ describe("WebSocket Stress Tests", () => {
       // Simulate some disconnections and reconnections
       const disconnects = Math.floor(config.clientCount * 0.1); // 10% disconnect
       for (let i = 0; i < disconnects; i++) {
-        const client = mockClients[Math.floor(Math.random() * mockClients.length)];
+        const client =
+          mockClients[Math.floor(Math.random() * mockClients.length)];
         if (client.connected) {
           client.disconnect();
           stats.disconnected++;
-          
+
           // Reconnect with exponential backoff
           client.reconnect();
           stats.reconnected++;
@@ -437,7 +453,7 @@ describe("WebSocket Stress Tests", () => {
     it("should perform health check with many connections", async () => {
       // Set up many connections
       const clientCount = 500;
-      
+
       for (let i = 0; i < clientCount; i++) {
         await connectionManager.registerConnection(`client-${i}`, {
           userId: `user-${i % 100}`, // 100 unique users
@@ -456,7 +472,9 @@ describe("WebSocket Stress Tests", () => {
       expect(stats.total).toBe(clientCount);
       expect(duration).toBeLessThan(50);
 
-      console.log(`Health check for ${clientCount} connections completed in ${duration}ms`);
+      console.log(
+        `Health check for ${clientCount} connections completed in ${duration}ms`,
+      );
     });
   });
 });
@@ -525,3 +543,6 @@ describe("WebSocket Client Manager Tests", () => {
     });
   });
 });
+
+
+

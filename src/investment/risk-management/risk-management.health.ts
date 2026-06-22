@@ -1,6 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { HealthCheckError, HealthIndicator, HealthIndicatorResult } from '@nestjs/terminus';
-import { CircuitBreakerService } from './circuit-breaker.service';
+import { Injectable } from "@nestjs/common";
+import {
+  HealthCheckError,
+  HealthIndicator,
+  HealthIndicatorResult,
+} from "@nestjs/terminus";
+import { CircuitBreakerService } from "./circuit-breaker.service";
 
 @Injectable()
 export class RiskManagementHealthIndicator extends HealthIndicator {
@@ -9,8 +13,8 @@ export class RiskManagementHealthIndicator extends HealthIndicator {
   }
 
   async isHealthy(key: string): Promise<HealthIndicatorResult> {
-    const status = this.circuitBreaker.getStatus('default');
-    const isHealthy = status.state !== 'OPEN';
+    const status = this.circuitBreaker.getStatus("default");
+    const isHealthy = status.state !== "OPEN";
 
     const result = this.getStatus(key, isHealthy, {
       circuitBreakerState: status.state,
@@ -19,6 +23,12 @@ export class RiskManagementHealthIndicator extends HealthIndicator {
     });
 
     if (isHealthy) return result;
-    throw new HealthCheckError('Risk management circuit breaker is open', result);
+    throw new HealthCheckError(
+      "Risk management circuit breaker is open",
+      result,
+    );
   }
 }
+
+
+

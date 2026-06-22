@@ -5,7 +5,7 @@ import { ConfigService } from "@nestjs/config";
 export function setupSwagger(app: INestApplication): void {
   const configService = app.get(ConfigService);
   const port = process.env.PORT || configService.get<number>("PORT", 3001);
-  
+
   const config = new DocumentBuilder()
     .setTitle("alian-structure Backend API")
     .setDescription(
@@ -40,7 +40,10 @@ export function setupSwagger(app: INestApplication): void {
       },
       "api-key",
     )
-    .addTag("Health", "Liveness, readiness, and startup probes for Kubernetes orchestration")
+    .addTag(
+      "Health",
+      "Liveness, readiness, and startup probes for Kubernetes orchestration",
+    )
     .addTag("Authentication", "User authentication and authorization")
     .addTag("Users", "User management operations")
     .addTag("Oracle", "Oracle data submissions")
@@ -74,3 +77,6 @@ export function setupSwagger(app: INestApplication): void {
     },
   });
 }
+
+
+

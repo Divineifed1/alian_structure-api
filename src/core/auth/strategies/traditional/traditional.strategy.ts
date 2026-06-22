@@ -16,7 +16,7 @@ import {
   AuthPayload,
   TraditionalCredentials,
 } from "../interfaces/auth-strategy.interface";
-import { User } from "../../../user/entities/user.entity";
+import { User } from "src/core/user/entities/user.entity";
 
 /**
  * Traditional email/password authentication strategy
@@ -178,3 +178,6 @@ export class TraditionalStrategy implements AuthStrategy {
     }
   }
 }
+
+
+

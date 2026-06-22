@@ -274,9 +274,9 @@ describe("PerformanceAnalyticsService", () => {
     });
 
     it("returns 0 cumulative return with fewer than two metrics", async () => {
-      metricRepository.createQueryBuilder().getMany.mockResolvedValue([
-        ascMetrics[0],
-      ]);
+      metricRepository
+        .createQueryBuilder()
+        .getMany.mockResolvedValue([ascMetrics[0]]);
       expect(await service.calculateCumulativeReturn("pf-1")).toBe(0);
     });
 
@@ -352,3 +352,6 @@ describe("PerformanceAnalyticsService", () => {
     });
   });
 });
+
+
+

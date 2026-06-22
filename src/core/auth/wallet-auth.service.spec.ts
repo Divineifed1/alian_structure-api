@@ -248,11 +248,20 @@ describe("WalletAuthService", () => {
       // User already has one wallet
       mockWalletRepository.find.mockResolvedValueOnce([mockWallet]);
       // Create returns a secondary wallet
-      const mockSecondaryWallet = { ...mockWallet, id: "wallet-456", type: WalletType.SECONDARY };
+      const mockSecondaryWallet = {
+        ...mockWallet,
+        id: "wallet-456",
+        type: WalletType.SECONDARY,
+      };
       mockWalletRepository.create.mockReturnValueOnce(mockSecondaryWallet);
       mockWalletRepository.save.mockResolvedValueOnce(mockSecondaryWallet);
 
-      const result = await service.linkWallet(mockUser.id, newAddress, message, signature);
+      const result = await service.linkWallet(
+        mockUser.id,
+        newAddress,
+        message,
+        signature,
+      );
 
       expect(result.message).toBe("Wallet successfully linked");
       expect(result.type).toBe(WalletType.SECONDARY);
@@ -265,11 +274,17 @@ describe("WalletAuthService", () => {
     it("should successfully unlink wallet with verified email", async () => {
       mockUserRepository.findOne.mockResolvedValue(mockUser);
       // Return both wallets so the service doesn't think it's the only wallet
-      mockWalletRepository.find.mockResolvedValueOnce([mockWallet, mockSecondWallet]);
+      mockWalletRepository.find.mockResolvedValueOnce([
+        mockWallet,
+        mockSecondWallet,
+      ]);
       // Return the second wallet when looking it up
       mockWalletRepository.findOne.mockResolvedValueOnce(mockSecondWallet);
 
-      const result = await service.unlinkWallet(mockUser.id, mockSecondWallet.id);
+      const result = await service.unlinkWallet(
+        mockUser.id,
+        mockSecondWallet.id,
+      );
 
       expect(result.message).toContain("Wallet successfully unlinked");
       expect(mockWalletRepository.findOne).toHaveBeenCalledWith({
@@ -289,9 +304,13 @@ describe("WalletAuthService", () => {
     it("should throw BadRequestException if email is null and trying to unlink only wallet", async () => {
       const noEmailUser = { ...mockUser, email: null, emailVerified: false };
       // Always return noEmailUser for any findOne call in this test
-      mockUserRepository.findOne.mockImplementation(() => Promise.resolve(noEmailUser));
+      mockUserRepository.findOne.mockImplementation(() =>
+        Promise.resolve(noEmailUser),
+      );
       // Only one wallet exists - use mockImplementation to ensure it's always returned
-      mockWalletRepository.find.mockImplementation(() => Promise.resolve([mockWallet]));
+      mockWalletRepository.find.mockImplementation(() =>
+        Promise.resolve([mockWallet]),
+      );
       mockWalletRepository.findOne.mockResolvedValueOnce(mockWallet);
 
       await expect(
@@ -389,3 +408,6 @@ describe("WalletAuthService", () => {
     });
   });
 });
+
+
+

@@ -5,20 +5,23 @@ import { ConnectionInfo } from "../interfaces/websocket.interfaces";
 @Injectable()
 export class ConnectionManagerService {
   private readonly logger = new Logger(ConnectionManagerService.name);
-  
+
   // Map of clientId -> ConnectionInfo
   private connections: Map<string, ConnectionInfo> = new Map();
-  
+
   // Map of userId -> Set of clientIds
   private userConnections: Map<string, Set<string>> = new Map();
-  
+
   // Map of clientId -> disconnectedAt timestamp
   private disconnectedClients: Map<string, Date> = new Map();
 
   /**
    * Register a new WebSocket connection
    */
-  async registerConnection(clientId: string, info: ConnectionInfo): Promise<void> {
+  async registerConnection(
+    clientId: string,
+    info: ConnectionInfo,
+  ): Promise<void> {
     this.connections.set(clientId, {
       ...info,
       isAlive: true,
@@ -31,7 +34,9 @@ export class ConnectionManagerService {
     }
     this.userConnections.get(info.userId).add(clientId);
 
-    this.logger.debug(`Registered connection: ${clientId} for user ${info.userId}`);
+    this.logger.debug(
+      `Registered connection: ${clientId} for user ${info.userId}`,
+    );
   }
 
   /**
@@ -47,9 +52,9 @@ export class ConnectionManagerService {
   getUserConnections(userId: string): ConnectionInfo[] {
     const clientIds = this.userConnections.get(userId);
     if (!clientIds) return [];
-    
+
     return Array.from(clientIds)
-      .map(id => this.connections.get(id))
+      .map((id) => this.connections.get(id))
       .filter((conn): conn is ConnectionInfo => conn !== undefined);
   }
 
@@ -58,7 +63,7 @@ export class ConnectionManagerService {
    */
   hasActiveConnection(userId: string): boolean {
     const connections = this.getUserConnections(userId);
-    return connections.some(conn => conn.isAlive);
+    return connections.some((conn) => conn.isAlive);
   }
 
   /**
@@ -80,7 +85,7 @@ export class ConnectionManagerService {
     if (connection) {
       connection.isAlive = false;
       this.disconnectedClients.set(clientId, new Date());
-      
+
       // Remove from user connections but keep connection info for event buffering
       const userConnections = this.userConnections.get(connection.userId);
       if (userConnections) {
@@ -94,22 +99,22 @@ export class ConnectionManagerService {
    */
   removeConnection(clientId: string): void {
     const connection = this.connections.get(clientId);
-    
+
     if (connection) {
       // Remove from user connections
       const userConnections = this.userConnections.get(connection.userId);
       if (userConnections) {
         userConnections.delete(clientId);
-        
+
         // Clean up empty sets
         if (userConnections.size === 0) {
           this.userConnections.delete(connection.userId);
         }
       }
-      
+
       this.connections.delete(clientId);
       this.disconnectedClients.delete(clientId);
-      
+
       this.logger.debug(`Removed connection: ${clientId}`);
     }
   }
@@ -130,7 +135,9 @@ export class ConnectionManagerService {
   unsubscribeFromPortfolio(clientId: string, portfolioId: string): void {
     const connection = this.connections.get(clientId);
     if (connection) {
-      connection.subscriptions = connection.subscriptions.filter(id => id !== portfolioId);
+      connection.subscriptions = connection.subscriptions.filter(
+        (id) => id !== portfolioId,
+      );
     }
   }
 
@@ -204,7 +211,10 @@ export class ConnectionManagerService {
     const removed: string[] = [];
     const now = Date.now();
 
-    for (const [clientId, disconnectedAt] of this.disconnectedClients.entries()) {
+    for (const [
+      clientId,
+      disconnectedAt,
+    ] of this.disconnectedClients.entries()) {
       if (now - disconnectedAt.getTime() > maxAgeMs) {
         this.removeConnection(clientId);
         removed.push(clientId);
@@ -235,7 +245,7 @@ export class ConnectionManagerService {
   getUserConnectionId(userId: string): string | null {
     const connections = this.userConnections.get(userId);
     if (!connections || connections.size === 0) return null;
-    
+
     return Array.from(connections)[0];
   }
 
@@ -249,3 +259,6 @@ export class ConnectionManagerService {
     }
   }
 }
+
+
+

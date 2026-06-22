@@ -1,5 +1,5 @@
 import { INestApplicationContext, Injectable, Logger } from "@nestjs/common";
-import { AuthService } from "../../../core/auth/auth.service";
+import { AuthService } from "src/core/auth/auth.service";
 import { JwtService } from "@nestjs/jwt";
 
 /**
@@ -28,7 +28,7 @@ export class DashboardWebSocketAuthAdapter {
     try {
       // Extract token from handshake
       const token = this.extractToken(socket);
-      
+
       if (!token) {
         this.logger.warn(`No token provided for socket ${socket.id}`);
         return false;
@@ -37,24 +37,26 @@ export class DashboardWebSocketAuthAdapter {
       // Verify JWT token
       if (this.jwtService) {
         const payload = this.jwtService.verify(token);
-        
+
         // Check if user exists and is valid
         if (payload.sub || payload.userId) {
           const userId = payload.sub || payload.userId;
-          
+
           // Attach user info to socket
           socket.user = {
             id: userId,
             ...payload,
           };
-          
+
           return true;
         }
       }
 
       return false;
     } catch (error) {
-      this.logger.error(`Authentication failed for socket ${socket.id}: ${error.message}`);
+      this.logger.error(
+        `Authentication failed for socket ${socket.id}: ${error.message}`,
+      );
       return false;
     }
   }
@@ -105,6 +107,12 @@ export function createWsAuthAdapter(appContext: INestApplicationContext) {
 }
 
 // Monkey-patch the Server to use the adapter
-export function setupAdapter(server: any, adapter: DashboardWebSocketAuthAdapter) {
+export function setupAdapter(
+  server: any,
+  adapter: DashboardWebSocketAuthAdapter,
+) {
   server.adapter = adapter;
 }
+
+
+

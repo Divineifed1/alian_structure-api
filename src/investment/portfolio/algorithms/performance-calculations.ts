@@ -274,8 +274,7 @@ export class PerformanceCalculations {
 
     const stdP = this.standardDeviation(p);
     const stdB = this.standardDeviation(b);
-    const correlation =
-      stdP === 0 || stdB === 0 ? 0 : cov / (stdP * stdB);
+    const correlation = stdP === 0 || stdB === 0 ? 0 : cov / (stdP * stdB);
 
     // Annualised arithmetic returns.
     const annualPortfolio = this.mean(p) * periodsPerYear;
@@ -310,3 +309,6 @@ export class PerformanceCalculations {
     };
   }
 }
+
+
+

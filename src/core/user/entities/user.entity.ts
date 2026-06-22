@@ -9,8 +9,8 @@ import {
   ManyToOne,
   JoinColumn,
 } from "typeorm";
-import { ProvenanceRecord } from "../../../infrastructure/audit/entities/provenance-record.entity";
-import { Wallet } from "../../auth/entities/wallet.entity";
+import { ProvenanceRecord } from "src/infrastructure/audit/entities/provenance-record.entity";
+import { Wallet } from "src/core/auth/entities/wallet.entity";
 
 export enum UserRole {
   USER = "user",
@@ -99,3 +99,6 @@ export class User {
   @OneToMany(() => User, (user) => user.referredBy)
   referrals: User[];
 }
+
+
+

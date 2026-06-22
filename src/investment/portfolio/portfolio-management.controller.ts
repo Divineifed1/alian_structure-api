@@ -79,9 +79,7 @@ export class PortfolioManagementController {
     description: "Unexpected error",
     type: ApiErrorDto,
   })
-  async getPortfolio(
-    @Param("id") id: string,
-  ): Promise<PortfolioResponseDto> {
+  async getPortfolio(@Param("id") id: string): Promise<PortfolioResponseDto> {
     return this.portfolioService.getPortfolio(id) as any;
   }
 
@@ -99,10 +97,11 @@ export class PortfolioManagementController {
     type: ApiErrorDto,
   })
   async listPortfolios(@Request() req: any): Promise<PortfolioListResponseDto> {
-    const portfolios = await this.portfolioService.getUserPortfolios(req.user.id);
+    const portfolios = await this.portfolioService.getUserPortfolios(
+      req.user.id,
+    );
     return { portfolios };
   }
-
 
   @Put(":id")
   @ApiOperation({ summary: "Update portfolio" })
@@ -158,4 +157,6 @@ export class PortfolioManagementController {
     return this.portfolioService.archivePortfolio(id, PortfolioStatus.ARCHIVED);
   }
 }
+
+
 

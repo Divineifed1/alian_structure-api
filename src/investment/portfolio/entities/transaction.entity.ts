@@ -85,3 +85,6 @@ export class Transaction {
   @Column("uuid", { nullable: true })
   portfolioAssetId: string | null;
 }
+
+
+

@@ -1,5 +1,5 @@
 // ⚠️ TEST FILE HAS DEPENDENCIES ON MISSING CODE
-// This test references RateLimiterService from "../../quota/rate-limiter.service"
+// This test references RateLimiterService from "src/quota/rate-limiter.service"
 // which does not exist in the current codebase. The quota/ directory was likely
 // removed or merged elsewhere during codebase consolidation.
 //
@@ -11,7 +11,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { Reflector } from "@nestjs/core";
 import { QuotaGuard } from "./quota.guard";
-// import { RateLimiterService } from "../../quota/rate-limiter.service"; // Missing dependency
+// import { RateLimiterService } from "src/quota/rate-limiter.service"; // Missing dependency
 import { HttpException } from "@nestjs/common";
 
 describe("QuotaGuard", () => {
@@ -127,3 +127,6 @@ describe("QuotaGuard", () => {
   //   );
   // });
 });
+
+
+

@@ -104,7 +104,11 @@ export class RebalancingService {
         let estimatedTaxImpact = 0;
 
         if (action === "sell") {
-          const capitalGains = Math.max(0, (asset.currentPrice - (asset.costBasisPerShare || 0)) * Math.abs(quantity));
+          const capitalGains = Math.max(
+            0,
+            (asset.currentPrice - (asset.costBasisPerShare || 0)) *
+              Math.abs(quantity),
+          );
           estimatedTaxImpact = capitalGains * 0.15; // Assume 15% capital gains tax
         }
 
@@ -149,7 +153,10 @@ export class RebalancingService {
         portfolio.targetAllocation || portfolio.currentAllocation,
       trades,
       estimatedCost: trades.reduce((sum, t) => sum + t.value, 0),
-      taxImpact: trades.reduce((sum, t) => sum + (t.estimatedTaxImpact || 0), 0),
+      taxImpact: trades.reduce(
+        (sum, t) => sum + (t.estimatedTaxImpact || 0),
+        0,
+      ),
     });
 
     this.logger.log(
@@ -343,3 +350,6 @@ export class RebalancingService {
     }
   }
 }
+
+
+

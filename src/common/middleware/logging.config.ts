@@ -1,10 +1,10 @@
 export const SENSITIVE_HEADERS = new Set([
-  'authorization',
-  'cookie',
-  'set-cookie',
-  'x-api-key',
-  'x-auth-token',
-  'proxy-authorization',
+  "authorization",
+  "cookie",
+  "set-cookie",
+  "x-api-key",
+  "x-auth-token",
+  "proxy-authorization",
 ]);
 
 /**
@@ -14,32 +14,32 @@ export const SENSITIVE_HEADERS = new Set([
  * Add to this set for any application-specific sensitive fields.
  */
 export const SENSITIVE_BODY_FIELDS = new Set([
-  'password',
-  'passwordconfirm',
-  'oldpassword',
-  'newpassword',
-  'currentpassword',
-  'confirmpassword',
-  'token',
-  'accesstoken',
-  'refreshtoken',
-  'idtoken',
-  'secret',
-  'apikey',
-  'ssn',
-  'socialsecuritynumber',
-  'creditcard',
-  'cardnumber',
-  'cvv',
-  'pin',
-  'privatekey',
-  'mnemonic',
-  'seed',
-  'privatekey',
-  'walletpassphrase',
+  "password",
+  "passwordconfirm",
+  "oldpassword",
+  "newpassword",
+  "currentpassword",
+  "confirmpassword",
+  "token",
+  "accesstoken",
+  "refreshtoken",
+  "idtoken",
+  "secret",
+  "apikey",
+  "ssn",
+  "socialsecuritynumber",
+  "creditcard",
+  "cardnumber",
+  "cvv",
+  "pin",
+  "privatekey",
+  "mnemonic",
+  "seed",
+  "privatekey",
+  "walletpassphrase",
 ]);
 
-export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'silent';
+export type LogLevel = "trace" | "debug" | "info" | "warn" | "error" | "silent";
 
 export interface RouteLogConfig {
   /** A string prefix or regex tested against the request path */
@@ -64,11 +64,14 @@ export const DEFAULT_LOGGING_CONFIG: Required<LoggingMiddlewareConfig> = {
   sensitiveHeaders: SENSITIVE_HEADERS,
   sensitiveBodyFields: SENSITIVE_BODY_FIELDS,
   routeLogLevels: [
-    { pattern: /^\/health/, level: 'debug' },
-    { pattern: /^\/metrics/, level: 'silent' },
+    { pattern: /^\/health/, level: "debug" },
+    { pattern: /^\/metrics/, level: "silent" },
   ],
   maxBodySize: 10 * 1024,
   enabled: true,
 };
 
-export const REQUEST_ID_HEADER = 'x-request-id';
+export const REQUEST_ID_HEADER = "x-request-id";
+
+
+

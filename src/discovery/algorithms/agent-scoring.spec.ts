@@ -1,8 +1,4 @@
-import {
-  AgentScoring,
-  AgentMetrics,
-  DEFAULT_WEIGHTS,
-} from "./agent-scoring";
+import { AgentScoring, AgentMetrics, DEFAULT_WEIGHTS } from "./agent-scoring";
 
 const agent = (id: string, m: Partial<AgentMetrics> = {}): AgentMetrics => ({
   agentId: id,
@@ -20,14 +16,24 @@ describe("AgentScoring", () => {
       expect(AgentScoring.resolveWeights()).toEqual(DEFAULT_WEIGHTS);
     });
     it("renormalizes overrides to sum to 1", () => {
-      const w = AgentScoring.resolveWeights({ successRate: 1, roi: 1, risk: 1, userRating: 1 });
+      const w = AgentScoring.resolveWeights({
+        successRate: 1,
+        roi: 1,
+        risk: 1,
+        userRating: 1,
+      });
       const sum = w.successRate + w.roi + w.risk + w.userRating;
       expect(sum).toBeCloseTo(1, 10);
       expect(w.successRate).toBeCloseTo(0.25, 10);
     });
     it("falls back to defaults on non-positive total", () => {
       expect(
-        AgentScoring.resolveWeights({ successRate: 0, roi: 0, risk: 0, userRating: 0 }),
+        AgentScoring.resolveWeights({
+          successRate: 0,
+          roi: 0,
+          risk: 0,
+          userRating: 0,
+        }),
       ).toEqual(DEFAULT_WEIGHTS);
     });
   });
@@ -54,8 +60,12 @@ describe("AgentScoring", () => {
       expect(b2.risk).toBe(0);
     });
     it("normalizes a 0..5 rating to 0..1", () => {
-      expect(AgentScoring.breakdown(agent("a", { userRating: 5 })).userRating).toBe(1);
-      expect(AgentScoring.breakdown(agent("a", { userRating: 0 })).userRating).toBe(0);
+      expect(
+        AgentScoring.breakdown(agent("a", { userRating: 5 })).userRating,
+      ).toBe(1);
+      expect(
+        AgentScoring.breakdown(agent("a", { userRating: 0 })).userRating,
+      ).toBe(0);
     });
     it("defends against missing / non-finite inputs", () => {
       const b = AgentScoring.breakdown({ agentId: "a" });
@@ -153,3 +163,6 @@ describe("AgentScoring", () => {
     });
   });
 });
+
+
+

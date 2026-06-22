@@ -25,7 +25,7 @@ async function bootstrap() {
   } catch (error) {
     logger.warn({ error: error.message }, "Tracing skipped");
   }
-  
+
   // Create app with error handling to catch database issues early
   let app;
   try {
@@ -34,7 +34,10 @@ async function bootstrap() {
       logger: ["log", "error", "warn", "debug", "verbose"],
     });
   } catch (createAppError) {
-    logger.error({ error: createAppError }, "Failed to initialize application (likely database connection error)");
+    logger.error(
+      { error: createAppError },
+      "Failed to initialize application (likely database connection error)",
+    );
     // Create a minimal app to still serve Swagger if possible
     app = await NestFactory.create(AppModule, {
       logger: ["log", "error", "warn"],
@@ -54,10 +57,10 @@ async function bootstrap() {
 
   // Security Headers - Helmet
   app.use(helmet.default(createHelmetConfig()));
-  
+
   // Handle favicon requests to prevent 404 errors in logs
   app.use((req: any, res: any, next: any) => {
-    if (req.url === '/favicon.ico') {
+    if (req.url === "/favicon.ico") {
       res.status(204).end();
       return;
     }
@@ -87,8 +90,8 @@ async function bootstrap() {
   // Swagger/OpenAPI Documentation Setup - Set this up BEFORE trying to listen, so it works even if DB fails
   setupSwagger(app);
 
-  const port = parseInt(process.env.PORT || '3001'); // Get port from environment variable, fallback to 3001 to match .env default
-  
+  const port = parseInt(process.env.PORT || "3001"); // Get port from environment variable, fallback to 3001 to match .env default
+
   // Try to start the server, but handle database connection errors gracefully
   try {
     await app.listen(port);
@@ -100,8 +103,14 @@ async function bootstrap() {
       `🔌 WebSocket endpoint available at ws://localhost:${port}/api/v1/dashboard`,
     );
   } catch (listenError) {
-    logger.error({ error: listenError, stack: listenError.stack }, "First listen attempt failed (full error details)");
-    logger.error({ error: listenError }, "Failed to start server completely, but Swagger UI is still available");
+    logger.error(
+      { error: listenError, stack: listenError.stack },
+      "First listen attempt failed (full error details)",
+    );
+    logger.error(
+      { error: listenError },
+      "Failed to start server completely, but Swagger UI is still available",
+    );
     // Still try to start the server on a basic level to serve Swagger
     await app.listen(port);
     logger.info(`🚀 Application running on http://localhost:${port}/api/v1`);
@@ -142,7 +151,7 @@ process.on("unhandledRejection", (reason: any) => {
     console.error("Error message:", reason.message);
     console.error("Error stack:", reason.stack);
   }
-  
+
   const error = reason instanceof Error ? reason : new Error(String(reason));
 
   if (Sentry.getCurrentHub().getClient()) {
@@ -157,3 +166,6 @@ process.on("unhandledRejection", (reason: any) => {
   logger.error({ error, stack: error.stack }, "Unhandled Rejection");
   process.exit(1);
 });
+
+
+

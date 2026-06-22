@@ -31,11 +31,15 @@ export interface HotFunction {
 @Injectable()
 export class ProfilingService {
   private readonly logger = new Logger(ProfilingService.name);
-  private readonly profilesDir = path.join(os.tmpdir(), "alian-structure-profiles");
+  private readonly profilesDir = path.join(
+    os.tmpdir(),
+    "alian-structure-profiles",
+  );
   private activeProfiles: Map<string, ProfileMetadata> = new Map();
   private cpuProfiler: any = null;
   private performanceObserver: PerformanceObserver | null = null;
-  private functionCalls: Map<string, { count: number; totalTime: number }> = new Map();
+  private functionCalls: Map<string, { count: number; totalTime: number }> =
+    new Map();
   private memoryLeakThreshold = 0.9; // 90% memory usage threshold
   private baselineMetrics: any = null;
 
@@ -58,7 +62,10 @@ export class ProfilingService {
       entries.forEach((entry) => {
         if (entry.entryType === "function") {
           const key = entry.name;
-          const current = this.functionCalls.get(key) || { count: 0, totalTime: 0 };
+          const current = this.functionCalls.get(key) || {
+            count: 0,
+            totalTime: 0,
+          };
           current.count += 1;
           current.totalTime += entry.duration;
           this.functionCalls.set(key, current);
@@ -89,9 +96,11 @@ export class ProfilingService {
     setInterval(() => {
       const stats = getHeapStatistics();
       const usedPercent = stats.used_heap_size / stats.heap_size_limit;
-      
+
       if (usedPercent > this.memoryLeakThreshold) {
-        this.logger.warn(`High memory usage detected: ${(usedPercent * 100).toFixed(2)}%`);
+        this.logger.warn(
+          `High memory usage detected: ${(usedPercent * 100).toFixed(2)}%`,
+        );
         Sentry.captureEvent({
           message: "High memory usage detected - potential memory leak",
           level: "warning",
@@ -106,7 +115,9 @@ export class ProfilingService {
   /**
    * Start CPU profiling
    */
-  async startCPUProfile(durationMs: number = 30000): Promise<{ profileId: string }> {
+  async startCPUProfile(
+    durationMs: number = 30000,
+  ): Promise<{ profileId: string }> {
     const { Session } = require("inspector").profiler;
     const session = new Session();
     session.connect();
@@ -128,7 +139,7 @@ export class ProfilingService {
     session.post("Profiler.enable", () => {
       session.post("Profiler.start", async () => {
         this.logger.log(`CPU profiling started: ${profileId}`);
-        
+
         // Stop after duration
         setTimeout(async () => {
           session.post("Profiler.stop", (err: any, params: any) => {
@@ -144,8 +155,10 @@ export class ProfilingService {
             metadata.size = stats.size;
             metadata.status = "completed";
             this.activeProfiles.set(profileId, metadata);
-            
-            this.logger.log(`CPU profiling completed: ${profileId}, size: ${(stats.size / 1024 / 1024).toFixed(2)}MB`);
+
+            this.logger.log(
+              `CPU profiling completed: ${profileId}, size: ${(stats.size / 1024 / 1024).toFixed(2)}MB`,
+            );
             session.disconnect();
             this.cpuProfiler = null;
           });
@@ -159,7 +172,11 @@ export class ProfilingService {
   /**
    * Take heap snapshot immediately
    */
-  async takeHeapSnapshot(): Promise<{ snapshotId: string; path: string; size: number }> {
+  async takeHeapSnapshot(): Promise<{
+    snapshotId: string;
+    path: string;
+    size: number;
+  }> {
     const snapshotId = `heap-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const filePath = path.join(this.profilesDir, `${snapshotId}.heapsnapshot`);
     const writeStream = fs.createWriteStream(filePath);
@@ -167,13 +184,13 @@ export class ProfilingService {
     return new Promise((resolve, reject) => {
       const snapshotStream = getHeapSnapshot();
       snapshotStream.pipe(writeStream);
-      
-      snapshotStream.on('error', (err) => {
+
+      snapshotStream.on("error", (err) => {
         this.logger.error("Heap snapshot failed", err);
         reject(err);
       });
 
-      writeStream.on('finish', () => {
+      writeStream.on("finish", () => {
         const stats = fs.statSync(filePath);
         const metadata: ProfileMetadata = {
           id: snapshotId,
@@ -186,8 +203,10 @@ export class ProfilingService {
         };
         this.activeProfiles.set(snapshotId, metadata);
 
-        this.logger.log(`Heap snapshot created: ${snapshotId}, size: ${(stats.size / 1024 / 1024).toFixed(2)}MB`);
-        
+        this.logger.log(
+          `Heap snapshot created: ${snapshotId}, size: ${(stats.size / 1024 / 1024).toFixed(2)}MB`,
+        );
+
         resolve({
           snapshotId,
           path: filePath,
@@ -202,7 +221,7 @@ export class ProfilingService {
    */
   getHotFunctions(): HotFunction[] {
     const functions: HotFunction[] = [];
-    
+
     this.functionCalls.forEach((value, key) => {
       functions.push({
         name: key,
@@ -221,12 +240,14 @@ export class ProfilingService {
    */
   getRequestTimelines() {
     const entries = performance.getEntriesByType("measure");
-    return entries.map((entry) => ({
-      name: entry.name,
-      startTime: entry.startTime,
-      duration: entry.duration,
-      entryType: entry.entryType,
-    })).sort((a, b) => a.startTime - b.startTime);
+    return entries
+      .map((entry) => ({
+        name: entry.name,
+        startTime: entry.startTime,
+        duration: entry.duration,
+        entryType: entry.entryType,
+      }))
+      .sort((a, b) => a.startTime - b.startTime);
   }
 
   /**
@@ -255,20 +276,28 @@ export class ProfilingService {
     };
 
     const regressions: string[] = [];
-    
+
     // Check CPU usage regression
     if (this.baselineMetrics) {
       const cpu1Avg = currentMetrics.cpu[0];
       const baselineCpu1 = this.baselineMetrics.cpu[0];
       if (cpu1Avg > baselineCpu1 * 1.5) {
-        regressions.push(`CPU usage increased by ${((cpu1Avg / baselineCpu1 - 1) * 100).toFixed(2)}%`);
+        regressions.push(
+          `CPU usage increased by ${((cpu1Avg / baselineCpu1 - 1) * 100).toFixed(2)}%`,
+        );
       }
 
       // Check memory regression
-      const currentMemoryUsage = currentMetrics.memory.used_heap_size / currentMetrics.memory.heap_size_limit;
-      const baselineMemoryUsage = this.baselineMetrics.memory.used_heap_size / this.baselineMetrics.memory.heap_size_limit;
+      const currentMemoryUsage =
+        currentMetrics.memory.used_heap_size /
+        currentMetrics.memory.heap_size_limit;
+      const baselineMemoryUsage =
+        this.baselineMetrics.memory.used_heap_size /
+        this.baselineMetrics.memory.heap_size_limit;
       if (currentMemoryUsage > baselineMemoryUsage * 1.3) {
-        regressions.push(`Memory usage increased by ${((currentMemoryUsage / baselineMemoryUsage - 1) * 100).toFixed(2)}%`);
+        regressions.push(
+          `Memory usage increased by ${((currentMemoryUsage / baselineMemoryUsage - 1) * 100).toFixed(2)}%`,
+        );
       }
     }
 
@@ -299,7 +328,8 @@ export class ProfilingService {
       heapSizeLimit: stats.heap_size_limit,
       mallocedMemory: stats.malloced_memory,
       peakMallocedMemory: stats.peak_malloced_memory,
-      percentUsed: ((stats.used_heap_size / stats.heap_size_limit) * 100).toFixed(2) + "%",
+      percentUsed:
+        ((stats.used_heap_size / stats.heap_size_limit) * 100).toFixed(2) + "%",
     };
   }
 
@@ -316,3 +346,6 @@ export class ProfilingService {
     return false;
   }
 }
+
+
+

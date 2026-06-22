@@ -151,7 +151,11 @@ export class PortfolioValidation {
           severity: ViolationSeverity.VIOLATION,
           overridable: true,
           message: `${ticker} is ${pct}% of the portfolio, above the ${constraints.maxAssetAllocationPct}% per-asset limit`,
-          meta: { ticker, allocation: pct, limit: constraints.maxAssetAllocationPct },
+          meta: {
+            ticker,
+            allocation: pct,
+            limit: constraints.maxAssetAllocationPct,
+          },
         });
       }
     }
@@ -164,7 +168,11 @@ export class PortfolioValidation {
           severity: ViolationSeverity.VIOLATION,
           overridable: true,
           message: `Category "${category}" is ${pct}%, above the ${constraints.maxCategoryAllocationPct}% per-category limit`,
-          meta: { category, allocation: pct, limit: constraints.maxCategoryAllocationPct },
+          meta: {
+            category,
+            allocation: pct,
+            limit: constraints.maxCategoryAllocationPct,
+          },
         });
       }
     }
@@ -259,3 +267,6 @@ export class PortfolioValidation {
     return { ...result, issues, valid };
   }
 }
+
+
+

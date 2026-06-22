@@ -1,4 +1,14 @@
-import { IsString, IsNotEmpty, IsOptional, IsEnum, IsNumber, IsBoolean, IsUrl, Min, Max } from "class-validator";
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsEnum,
+  IsNumber,
+  IsBoolean,
+  IsUrl,
+  Min,
+  Max,
+} from "class-validator";
 import { Transform } from "class-transformer";
 
 export enum NodeEnv {
@@ -235,3 +245,6 @@ export class EnvironmentVariables {
   @Transform(({ value }) => value === "true")
   REFERRAL_ENABLE_VPN_DETECTION?: boolean = false;
 }
+
+
+

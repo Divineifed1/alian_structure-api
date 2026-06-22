@@ -10,10 +10,10 @@ export class ReconnectionService {
   private readonly logger = new Logger(ReconnectionService.name);
 
   private readonly defaultConfig: ReconnectionConfig = {
-    maxDelay: 30000,          // Maximum 30 second delay as per requirement
-    baseDelay: 1000,          // Start with 1 second
-    maxAttempts: Infinity,    // Keep trying until successful
-    factor: 2,                // Double delay each time
+    maxDelay: 30000, // Maximum 30 second delay as per requirement
+    baseDelay: 1000, // Start with 1 second
+    maxAttempts: Infinity, // Keep trying until successful
+    factor: 2, // Double delay each time
   };
 
   private config: ReconnectionConfig;
@@ -24,8 +24,12 @@ export class ReconnectionService {
 
   // Callbacks
   private onReconnect: (() => void) | null = null;
-  private onReconnectAttempt: ((attempt: number, delay: number) => void) | null = null;
-  private onReconnectFailed: ((attempts: number, totalDelay: number) => void) | null = null;
+  private onReconnectAttempt:
+    | ((attempt: number, delay: number) => void)
+    | null = null;
+  private onReconnectFailed:
+    | ((attempts: number, totalDelay: number) => void)
+    | null = null;
 
   constructor(config?: Partial<ReconnectionConfig>) {
     this.config = { ...this.defaultConfig, ...config };
@@ -47,7 +51,7 @@ export class ReconnectionService {
     this.currentDelay = this.config.baseDelay;
     this.attempts = 0;
     this.isReconnecting = false;
-    
+
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -65,7 +69,7 @@ export class ReconnectionService {
     this.onReconnect = onReconnect;
     this.onReconnectAttempt = onAttempt || null;
     this.onReconnectFailed = onFailed || null;
-    
+
     this.isReconnecting = true;
     this.scheduleReconnect();
   }
@@ -75,12 +79,12 @@ export class ReconnectionService {
    */
   stopReconnection(): void {
     this.isReconnecting = false;
-    
+
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    
+
     this.logger.debug("Reconnection process stopped");
   }
 
@@ -144,9 +148,11 @@ export class ReconnectionService {
 
     this.attempts++;
     const delay = this.calculateNextDelay();
-    
-    this.logger.debug(`Scheduling reconnection attempt ${this.attempts} in ${delay}ms`);
-    
+
+    this.logger.debug(
+      `Scheduling reconnection attempt ${this.attempts} in ${delay}ms`,
+    );
+
     if (this.onReconnectAttempt) {
       this.onReconnectAttempt(this.attempts, delay);
     }
@@ -155,12 +161,15 @@ export class ReconnectionService {
       if (this.onReconnect) {
         this.onReconnect();
       }
-      
+
       // After calling onReconnect, the caller should call notifySuccess or schedule next attempt
     }, delay);
 
     // Calculate next delay for next iteration
-    this.currentDelay = Math.min(this.currentDelay * this.config.factor, this.config.maxDelay);
+    this.currentDelay = Math.min(
+      this.currentDelay * this.config.factor,
+      this.config.maxDelay,
+    );
   }
 
   /**
@@ -169,12 +178,12 @@ export class ReconnectionService {
   private calculateTotalDelay(): number {
     let total = 0;
     let delay = this.config.baseDelay;
-    
+
     for (let i = 0; i < this.attempts; i++) {
       total += delay;
       delay = Math.min(delay * this.config.factor, this.config.maxDelay);
     }
-    
+
     return total;
   }
 
@@ -197,12 +206,16 @@ export class ReconnectionService {
 @Injectable()
 export class WebSocketClientManager {
   private readonly logger = new Logger(WebSocketClientManager.name);
-  
+
   private socket: any = null;
   private reconnectService: ReconnectionService;
   private eventBuffer: any[] = [];
   private messageHandlers: Map<string, Function[]> = new Map();
-  private connectionState: "disconnected" | "connecting" | "connected" | "reconnecting" = "disconnected";
+  private connectionState:
+    | "disconnected"
+    | "connecting"
+    | "connected"
+    | "reconnecting" = "disconnected";
   private token: string | null = null;
   private userId: string | null = null;
 
@@ -221,7 +234,7 @@ export class WebSocketClientManager {
     try {
       // Dynamic import for socket.io-client
       const { io } = await import("socket.io-client");
-      
+
       this.socket = io(url, {
         transports: ["websocket"],
         auth: { token },
@@ -247,10 +260,10 @@ export class WebSocketClientManager {
       this.logger.log("WebSocket connected");
       this.connectionState = "connected";
       this.reconnectService.notifySuccess();
-      
+
       // Flush buffered events
       this.flushBufferedEvents();
-      
+
       // Re-subscribe to channels
       this.resubscribe();
     });
@@ -258,7 +271,7 @@ export class WebSocketClientManager {
     this.socket.on("disconnect", (reason: string) => {
       this.logger.warn(`WebSocket disconnected: ${reason}`);
       this.connectionState = "disconnected";
-      
+
       // Only auto-reconnect if not intentionally disconnected
       if (reason !== "io client disconnect") {
         this.startReconnection();
@@ -314,8 +327,10 @@ export class WebSocketClientManager {
 
     // Handle reconnection success with buffered events
     this.socket.on("reconnection:success", (data: any) => {
-      this.logger.log(`Reconnection successful, received ${data.missedEvents} missed events`);
-      
+      this.logger.log(
+        `Reconnection successful, received ${data.missedEvents} missed events`,
+      );
+
       if (data.events && Array.isArray(data.events)) {
         for (const evt of data.events) {
           const handlers = this.messageHandlers.get(evt.event);
@@ -334,14 +349,16 @@ export class WebSocketClientManager {
    */
   private startReconnection(): void {
     this.connectionState = "reconnecting";
-    
+
     this.reconnectService.startReconnection(
       () => this.attemptReconnect(),
       (attempt, delay) => {
         this.logger.log(`Reconnection attempt ${attempt} in ${delay}ms`);
       },
       (attempts, totalDelay) => {
-        this.logger.error(`Failed to reconnect after ${attempts} attempts (total delay: ${totalDelay}ms)`);
+        this.logger.error(
+          `Failed to reconnect after ${attempts} attempts (total delay: ${totalDelay}ms)`,
+        );
         this.connectionState = "disconnected";
       },
     );
@@ -378,7 +395,7 @@ export class WebSocketClientManager {
    */
   private bufferEvent(event: string, data: any): void {
     this.eventBuffer.push({ event, data, timestamp: new Date() });
-    
+
     // Limit buffer size
     if (this.eventBuffer.length > 1000) {
       this.eventBuffer.shift();
@@ -392,7 +409,7 @@ export class WebSocketClientManager {
     if (this.eventBuffer.length === 0) return;
 
     this.logger.log(`Flushing ${this.eventBuffer.length} buffered events`);
-    
+
     // Events will be replayed by the server on reconnection
     // so we just clear our local buffer
     this.eventBuffer = [];
@@ -421,13 +438,17 @@ export class WebSocketClientManager {
         return;
       }
 
-      this.socket.emit("portfolio:subscribe", { portfolioId }, (response: any) => {
-        if (response.error) {
-          reject(new Error(response.error));
-        } else {
-          resolve();
-        }
-      });
+      this.socket.emit(
+        "portfolio:subscribe",
+        { portfolioId },
+        (response: any) => {
+          if (response.error) {
+            reject(new Error(response.error));
+          } else {
+            resolve();
+          }
+        },
+      );
     });
   }
 
@@ -473,12 +494,12 @@ export class WebSocketClientManager {
    */
   disconnect(): void {
     this.reconnectService.stopReconnection();
-    
+
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
     }
-    
+
     this.connectionState = "disconnected";
     this.eventBuffer = [];
   }
@@ -515,3 +536,6 @@ export class WebSocketClientManager {
     });
   }
 }
+
+
+

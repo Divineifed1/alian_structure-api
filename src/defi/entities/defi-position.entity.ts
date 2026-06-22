@@ -8,7 +8,7 @@ import {
   UpdateDateColumn,
   Index,
 } from "typeorm";
-import { User } from "../../core/user/entities/user.entity";
+import { User } from "src/core/user/entities/user.entity";
 import { DeFiYieldRecord } from "./defi-yield-record.entity";
 import { DeFiTransaction } from "./defi-transaction.entity";
 
@@ -148,3 +148,6 @@ export class DeFiPosition {
   @Column("timestamp", { nullable: true })
   last_updated_on_chain: Date;
 }
+
+
+

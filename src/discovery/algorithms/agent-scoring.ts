@@ -172,7 +172,9 @@ export class AgentScoring {
    *   AGENT_SCORE_WEIGHT_SUCCESS, _ROI, _RISK, _RATING
    * Missing/invalid keys fall back to defaults; result is renormalized to sum to 1.
    */
-  static weightsFromEnv(env: Record<string, string | undefined>): ScoringWeights {
+  static weightsFromEnv(
+    env: Record<string, string | undefined>,
+  ): ScoringWeights {
     const num = (v?: string) => {
       const n = Number(v);
       return Number.isFinite(n) ? n : undefined;
@@ -185,3 +187,6 @@ export class AgentScoring {
     });
   }
 }
+
+
+
