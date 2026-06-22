@@ -26,7 +26,7 @@ import { DelegationService, DelegationPermission } from "./delegation.service";
 import { JwtAuthGuard } from "./jwt.guard";
 import { EnhancedAuthService } from "./enhanced-auth.service";
 import { TokenBlacklistService } from "./token-blacklist.service";
-import { RegisterDto, LoginDto } from "./dto/auth.dto";
+import { RegisterDto, LoginDto, TwoFactorVerifyDto } from "./dto/auth.dto";
 import { LinkEmailDto } from "./dto/link-email.dto";
 import { VerifyEmailDto } from "./dto/verify-email.dto";
 import { RequestRecoveryDto } from "./dto/request-recovery.dto";
@@ -38,6 +38,7 @@ import { SensitiveRateLimit } from "../../common/decorators/rate-limit.decorator
 import { Roles, Role } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guard/roles.guard";
 import { Public } from "../../common/decorators/public.decorator";
+import { AdminTwoFactorGuard } from "./guards/admin-two-factor.guard";
 
 export class RequestChallengeDto {
   @ApiProperty({
@@ -137,7 +138,12 @@ export class AuthController {
     const result = await this.walletAuthService.verifySignatureAndIssueToken(
       dto.message,
       dto.signature,
-    );
+    ) as {
+      token?: string;
+      address: string;
+      requiresTwoFactor?: boolean;
+      userId?: string;
+    };
 
     if (result.requiresTwoFactor) {
       return {

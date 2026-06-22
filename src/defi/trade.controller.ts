@@ -1,6 +1,6 @@
 import { Controller, Post, Body, Req, UseGuards, Headers } from '@nestjs/common';
-import { JwtAuthGuard } from '../../core/auth/jwt.guard';
-import { TradeLockService } from './trade-lock.service';
+import { JwtAuthGuard } from '../core/auth/jwt.guard';
+import { TradeLockService, TradeResult } from './trade-lock.service';
 
 @Controller('trading')
 @UseGuards(JwtAuthGuard)
@@ -16,7 +16,7 @@ export class TradeController {
     @Req() req: any,
     @Headers('idempotency-key') idempotencyKey: string,
     @Body() body: { asset: string; amount: number; side: 'buy' | 'sell' },
-  ) {
+  ): Promise<TradeResult> {
     return this.tradeLockService.executeTrade({
       idempotencyKey: idempotencyKey || `${req.user.id}_${Date.now()}`,
       userId: req.user.id,

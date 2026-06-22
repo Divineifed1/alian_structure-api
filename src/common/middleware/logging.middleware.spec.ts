@@ -1,7 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { INestApplication, Module, Controller, Get, Post, Body } from '@nestjs/common';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const request = require('supertest') as typeof import('supertest');
+import request from 'supertest';
 import { LoggingMiddleware } from './logging.middleware';
 import { REQUEST_ID_HEADER } from './logging.config';
 

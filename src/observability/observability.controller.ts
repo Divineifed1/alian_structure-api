@@ -3,7 +3,7 @@ import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { Response } from "express";
 import { Public } from "../common/decorators/public.decorator";
 import { SkipKyc } from "../common/decorators/skip-kyc.decorator";
-import { PerformanceBaselineService } from "./performance-baseline.service";
+import { PerformanceBaselineService, BaselineMetric, RegressionDetection } from "./performance-baseline.service";
 import { RequestTimingMiddleware } from "./request-timing.middleware";
 import { register } from "../config/metrics";
 
@@ -23,7 +23,7 @@ export class ObservabilityController {
     description: "Returns all established performance baselines for routes",
   })
   @ApiResponse({ status: 200, description: "List of performance baselines" })
-  getBaselines() {
+  getBaselines(): BaselineMetric[] {
     return this.performanceBaselineService.getBaselines();
   }
 
@@ -33,7 +33,7 @@ export class ObservabilityController {
     description: "Returns all detected performance regressions",
   })
   @ApiResponse({ status: 200, description: "List of performance regressions" })
-  getRegressions() {
+  getRegressions(): RegressionDetection[] {
     return this.performanceBaselineService.getRegressions();
   }
 

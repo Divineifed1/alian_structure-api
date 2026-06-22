@@ -52,6 +52,9 @@ export class ExecuteRebalancingDto {
   @IsOptional()
   @IsNumber()
   executionSlippage?: number;
+
+  @IsOptional()
+  dryRun?: boolean;
 }
 
 export class CancelRebalancingDto {

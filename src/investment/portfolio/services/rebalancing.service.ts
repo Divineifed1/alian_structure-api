@@ -149,7 +149,7 @@ export class RebalancingService {
         portfolio.targetAllocation || portfolio.currentAllocation,
       trades,
       estimatedCost: trades.reduce((sum, t) => sum + t.value, 0),
-      estimatedTaxImpact: trades.reduce((sum, t) => sum + t.estimatedTaxImpact, 0),
+      taxImpact: trades.reduce((sum, t) => sum + (t.estimatedTaxImpact || 0), 0),
     });
 
     this.logger.log(
