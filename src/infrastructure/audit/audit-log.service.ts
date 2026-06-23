@@ -15,7 +15,27 @@ const ARCHIVE_AFTER_YEARS = 1;
 
 @Injectable()
 export class AuditLogService {
-  constructor(
+  private logs: any[] = [];
+
+  async recordVerification(result: any) {
+    const entry = {
+      type: "VERIFICATION",
+      ...result,
+    };
+
+    this.logs.push(entry);
+
+    // ❗ Immutable simulation (append-only)
+    Object.freeze(entry);
+
+    return entry;
+  }
+
+  getLogs(limit = 50) {
+    return this.logs.slice(-limit);
+  }
+
+    constructor(
     @InjectRepository(AuditLog)
     private readonly repo: Repository<AuditLog>,
     private readonly signingService: ExportSigningService,
@@ -169,5 +189,6 @@ export class AuditLogService {
       .execute();
   }
 }
+
 
 
