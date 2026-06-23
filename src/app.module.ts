@@ -55,6 +55,7 @@ import { Wallet } from "./core/auth/entities/wallet.entity";
 // Oracle entities
 import { SignedPayload } from "./blockchain/oracle/entities/signed-payload.entity";
 import { SubmissionNonce } from "./blockchain/oracle/entities/submission-nonce.entity";
+import { PriceRecord } from "./blockchain/oracle/entities/price-record.entity";
 
 // Audit entities
 import { AgentEvent } from "./infrastructure/audit/entities/agent-event.entity";
@@ -145,6 +146,7 @@ import { ProfilingMiddleware } from "./profiling/profiling.middleware";
             Wallet,
             SignedPayload,
             SubmissionNonce,
+            PriceRecord,
             AgentEvent,
             ComputeResult,
             ProvenanceRecord,
