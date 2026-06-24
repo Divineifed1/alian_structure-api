@@ -99,11 +99,7 @@ export class User {
 
   @OneToMany(() => User, (user) => user.referredBy)
   referrals: User[];
-@OneToMany(() => SocialAccount, (social) => social.user)
-socialAccounts: SocialAccount[];
 
-
+  @OneToMany(() => SocialAccount, (social) => social.user)
+  socialAccounts: SocialAccount[];
 }
-
-
-
