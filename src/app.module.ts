@@ -83,6 +83,10 @@ import { Alert } from "./growth/alerts/entities/alert.entity";
 import { AlertTriggerLog } from "./growth/alerts/entities/alert-trigger-log.entity";
 import { AlertPreference } from "./growth/alerts/entities/alert-preference.entity";
 
+// Discovery entities
+import { AgentReview } from "./discovery/reviews/entities/agent-review.entity";
+import { AgentReviewsModule } from "./discovery/reviews/agent-reviews.module";
+
 // Guards
 import { APP_FILTER } from "@nestjs/core";
 import { QuotaGuard } from "./common/guard/quota.guard";
@@ -164,6 +168,7 @@ import { ProfilingMiddleware } from "./profiling/profiling.middleware";
             Alert,
             AlertTriggerLog,
             AlertPreference,
+            AgentReview,
           ],
           synchronize: true,
           logging: true,
@@ -192,6 +197,7 @@ import { ProfilingMiddleware } from "./profiling/profiling.middleware";
     HealthModule,
     ObservabilityModule,
     ProfilingModule,
+    AgentReviewsModule,
   ],
 
   controllers: [AppController],
