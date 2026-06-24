@@ -15,6 +15,9 @@ import {
   OAuthCredentials,
 } from "../interfaces/auth-strategy.interface";
 import { User } from "src/core/user/entities/user.entity";
+import {
+  resolveRateLimitTierFromRole,
+} from "src/config/quota.config";
 
 /**
  * OAuth provider configuration
@@ -143,6 +146,7 @@ export class OAuthStrategy implements AuthStrategy {
       email: user.email,
       username: user.username,
       role: user.role || "user",
+      tier: resolveRateLimitTierFromRole(user.role),
       iat: Math.floor(Date.now() / 1000),
       type: "oauth",
     };
@@ -160,6 +164,7 @@ export class OAuthStrategy implements AuthStrategy {
         email: user.email,
         username: user.username,
         role: user.role || "user",
+        tier: resolveRateLimitTierFromRole(user.role),
         type: "oauth",
       },
     };
@@ -279,6 +284,5 @@ export class OAuthStrategy implements AuthStrategy {
     }
   }
 }
-
 
 
