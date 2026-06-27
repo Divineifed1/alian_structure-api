@@ -16,11 +16,12 @@ export class RiskManagementHealthIndicator extends HealthIndicator {
     const status = this.circuitBreaker.getStatus("default");
     const isHealthy = status.state !== "OPEN";
 
-    const result = this.getStatus(key, isHealthy, {
+    const result: HealthIndicatorResult = {
+      status: isHealthy ? "up" : "down",
       circuitBreakerState: status.state,
       failureCount: status.failureCount,
       lastFailureTime: status.lastFailureTime,
-    });
+    };
 
     if (isHealthy) return result;
     throw new HealthCheckError(
