@@ -5,8 +5,11 @@ import {
   IsNumber,
   IsBoolean,
   IsJSON,
+  IsObject,
+  Min,
+  Max,
 } from "class-validator";
-import { PortfolioStatus } from "../entities/portfolio.entity";
+import { PortfolioType, PortfolioStatus, AllocationStrategy } from "../entities/portfolio.entity";
 export class CreatePortfolioDto {
   @IsString()
   name: string;

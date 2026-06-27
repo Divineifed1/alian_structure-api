@@ -47,6 +47,48 @@ export class PortfolioService {
     private auditLogService: AuditLogService,
   ) {}
 
+  private validatePortfolioName(name: string): void {
+    if (!name || name.trim().length === 0) {
+      throw new BadRequestException("Portfolio name cannot be empty");
+    }
+  }
+
+  private validateAllocation(allocation?: Record<string, number>): void {
+    if (!allocation) return;
+    const sum = Object.values(allocation).reduce((acc, val) => acc + (val || 0), 0);
+    if (Math.abs(sum - 100) > 0.1) {
+      throw new BadRequestException(
+        `Allocation percentages must sum to 100, got ${sum}`,
+      );
+    }
+  }
+
+  async deletePortfolio(portfolioId: string): Promise<void> {
+    const portfolio = await this.getPortfolio(portfolioId);
+    await this.portfolioRepository.remove(portfolio);
+  }
+
+  async archivePortfolio(
+    portfolioId: string,
+    status: PortfolioStatus,
+  ): Promise<Portfolio> {
+    const portfolio = await this.getPortfolio(portfolioId);
+    if (status === PortfolioStatus.ARCHIVED) {
+      portfolio.status = PortfolioStatus.ARCHIVED;
+      portfolio.deletedAt = new Date();
+    }
+    return this.portfolioRepository.save(portfolio);
+  }
+
+  async setTargetAllocation(
+    portfolioId: string,
+    allocations: { [ticker: string]: number },
+  ): Promise<Portfolio> {
+    const portfolio = await this.getPortfolio(portfolioId);
+    portfolio.targetAllocation = allocations;
+    return this.portfolioRepository.save(portfolio);
+  }
+
   async createPortfolio(userId: string, dto: CreatePortfolioDto): Promise<Portfolio> {
     this.validatePortfolioName(dto.name);
     this.validateAllocation(dto.initialAllocation);
@@ -145,38 +187,39 @@ export class PortfolioService {
   ): Promise<PortfolioAsset> {
     const portfolio = await this.getPortfolio(portfolioId);
 
-    if (quantity <= 0) {
+    if (dto.quantity <= 0) {
       throw new BadRequestException("Quantity must be positive");
     }
 
-    if (currentPrice < 0) {
+    if (dto.currentPrice !== undefined && dto.currentPrice < 0) {
       throw new BadRequestException("Current price cannot be negative");
     }
 
-    let asset = await this.portfolioAssetRepository.findOne({
-      where: { portfolioId, ticker },
+    const existingAsset = await this.portfolioAssetRepository.findOne({
+      where: { portfolioId, ticker: dto.ticker },
     });
 
-    if (existing) {
+    if (existingAsset) {
       throw new BadRequestException(
         "Holding with same ticker and chain already exists",
       );
     }
 
-    asset.quantity = quantity;
-    asset.currentPrice = currentPrice;
-    asset.value = quantity * currentPrice;
+    const asset = this.portfolioAssetRepository.create({
+      ...dto,
+      portfolioId,
+      value: dto.quantity * (dto.currentPrice || 0),
+    });
 
     await this.validatePortfolioConstraints(
       portfolio,
-      [...(portfolio.assets || []), holding as PortfolioAsset],
+      [...(portfolio.assets || []), asset],
       dto,
       "ADD_HOLDING",
     );
 
-    const saved = await this.portfolioAssetRepository.save(holding);
+    const saved = await this.portfolioAssetRepository.save(asset);
 
-    // Update portfolio metrics
     await this.updatePortfolioMetrics(portfolioId);
 
     return saved;

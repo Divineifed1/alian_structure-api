@@ -31,6 +31,15 @@ export enum PortfolioType {
   OTHER = "other",
 }
 
+export enum AllocationStrategy {
+  MANUAL = "manual",
+  EQUAL_WEIGHT = "equal_weight",
+  MARKET_CAP = "market_cap",
+  RISK_PARITY = "risk_parity",
+  MVO = "mvo",
+  CUSTOM = "custom",
+}
+
 @Entity("portfolios")
 @Index(["userId", "status"])
 @Index(["userId", "createdAt"])
@@ -44,19 +53,11 @@ export class Portfolio {
   @Column({
     type: "enum",
     enum: PortfolioType,
-    default: PortfolioType.CUSTOM,
-  })
-  type: PortfolioType;
-
-  @Column({ type: "text", nullable: true })
-  description: string;
-
-  @Column({
-    type: "enum",
-    enum: PortfolioType,
     default: PortfolioType.MANUAL,
   })
   type: PortfolioType;
+
+  description: string;
 
   @Column({
     type: "enum",
